@@ -43,9 +43,13 @@ header nav,.choices{display:flex;gap:5px;flex-wrap:wrap}.choices button[aria-pre
 .traffic-segment[aria-pressed=true]{outline:2px solid #333}
 .arrival-delay{display:block;color:#a13b10}
 #trafficDetail{white-space:pre-line}
-.stop-cell{grid-template-columns:44px minmax(0,1fr) 32px}
-.stop-map{display:grid;place-items:center;width:30px;min-height:34px;text-decoration:none;font-size:16px;align-self:center}
+.stop-cell{grid-template-columns:44px 25px minmax(0,1fr)}
+.stop-map{display:grid;place-items:center;width:25px;min-height:34px;text-decoration:none;font-size:16px;align-self:center}
 .stop-map:focus-visible{outline:2px solid #1464e0;border-radius:5px}
+.route-map-actions{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 10px;align-items:center}
+#routeMapDialog{width:min(92vw,650px);max-height:90vh;border:1px solid #cad8ce;border-radius:14px;padding:16px}
+#routeMapDialog svg{max-height:55vh}
+#routeMapDialog::backdrop{background:#0007}
 </style>
 <main>
 <header><strong data-copy="brand"></strong><nav><button id="zh" aria-pressed="true" lang="zh-Hant">中</button><button id="en" aria-pressed="false" lang="en">ENG</button></nav></header>
@@ -53,7 +57,7 @@ header nav,.choices{display:flex;gap:5px;flex-wrap:wrap}.choices button[aria-pre
 <form id="routeSearch" class="route-search"><label><span data-copy="searchLabel"></span><input id="routeInput" maxlength="8" placeholder="65, K3, SL7" required></label><button data-copy="search"></button><p id="searchNote" class="muted" role="status"></p></form><div class="controls"><div class="choices" id="routePicker" role="group" data-label="route"><button id="route65">65</button><button id="route371">371</button></div><div class="choices" role="group" data-label="direction"><button id="outbound" aria-pressed="true">Ealing Broadway</button><button id="inbound" aria-pressed="false">Kingston · Brook Street</button></div><label><span data-copy="boarding"></span> <select id="station"></select></label></div>
 <div class="layout">
 <section class="card diagram">
-<div class="route-columns"><div id="outboundPanel"><h2 class="track-heading"><span class="arrow" aria-hidden="true">↓</span> <span data-copy="out"></span></h2>
+<div class="route-map-actions"><button id="openRouteMap" data-copy="fullMap" disabled></button><a id="googleRoute" data-copy="googleTrip" target="_blank" rel="noopener" hidden></a></div><div class="route-columns"><div id="outboundPanel"><h2 class="track-heading"><span class="arrow" aria-hidden="true">↓</span> <span data-copy="out"></span></h2>
 <div id="outboundViewport" class="viewport" tabindex="0" data-label="outScroll"><div class="track" id="outboundTrack"></div></div></div><div id="inboundPanel" hidden>
 <h2 class="track-heading"><span class="arrow" aria-hidden="true">↓</span> <span data-copy="in"></span></h2>
 <div id="inboundViewport" class="viewport" tabindex="0" data-label="inScroll"><div class="track inbound" id="inboundTrack"></div></div></div></div>
@@ -67,6 +71,7 @@ header nav,.choices{display:flex;gap:5px;flex-wrap:wrap}.choices button[aria-pre
 </div>
 <details class="card stops"><summary id="stopSummary">完整站序 · All stops</summary><ol id="stopList"></ol></details>
 <p class="source muted"><span data-copy="source"></span> <a href="https://tfl.gov.uk/bus/route/65/" target="_blank" rel="noopener" data-copy="official"></a></p>
+<dialog id="routeMapDialog" aria-labelledby="routeMapTitle"><form method="dialog"><button data-copy="closeMap"></button></form><h2 id="routeMapTitle"></h2><p id="routeMapNote"></p><svg id="routeMapDrawing" viewBox="0 0 460 370" role="img"></svg></dialog>
 </main>
 <script>
 const by=id=>document.getElementById(id);
@@ -80,7 +85,7 @@ const copy={
  outScroll:['往 Ealing Broadway 全線站名','All stops towards Ealing Broadway'],
  inScroll:['往 Kingston 全線站名','All stops towards Kingston'],
  legend:['紅色雙層巴士：推算位置。閃動黃光：預計下一站。紅圈：上車站。','Red double-decker: estimated bus position. Flashing yellow: next stop. Red ring: boarding stop.'],
- trafficTitle:['沿途交通通報','Road reports'],positions:['巴士位置','Bus positions'],fleet:['路線上嘅巴士','Buses on this route'],source:['到站時間由 TfL 提供。巴士位置按預測推算。','TfL arrival predictions are used to estimate bus positions.'],
+ trafficTitle:['沿途交通通報','Road reports'],fullMap:['全線地圖','Full route map'],googleTrip:['Google Maps 搭車路線','Google Maps transit directions'],closeMap:['關閉','Close'],positions:['巴士位置','Bus positions'],fleet:['路線上嘅巴士','Buses on this route'],source:['到站時間由 TfL 提供。巴士位置按預測推算。','TfL arrival predictions are used to estimate bus positions.'],
  official:['TfL 65 官方路線','Official TfL route 65']
 };
 let stopsFailed=false;
@@ -211,6 +216,46 @@ function reveal(dir,index){
  const viewport=by(dir+'Viewport'),cell=nodes[dir][index].cell;
  viewport.scrollTop=cell.offsetTop-(viewport.clientHeight-cell.offsetHeight)/2;
 }
+function updateRouteLinks(){
+ if(!stops.length)return;
+ const endpoints=[stops[0],stops.at(-1)].map(([id,name])=>{
+   const point=stopCoordinates[direction]?.get(id);
+   return point?point[1]+','+point[0]:name+' bus stop London';
+ });
+ const google=by('googleRoute');
+ google.href='https://www.google.com/maps/dir/?'+new URLSearchParams({api:'1',origin:endpoints[0],destination:endpoints[1],travelmode:'transit'});
+ google.hidden=false;
+ by('openRouteMap').disabled=false;
+}
+function drawFullRoute(){
+ const drawing=by('routeMapDrawing');
+ const geometry=routeGeometry?.[direction];
+ drawing.replaceChildren();
+ by('routeMapTitle').textContent=line+' · '+towards(direction);
+ by('routeMapNote').textContent=geometry?tr('TfL 路線走線圖。撳站點可睇站名。','TfL route outline. Select a stop to see its name.'):tr('暫時未能取得 TfL 全線走線。','The full TfL route outline is currently unavailable.');
+ if(!geometry)return;
+ drawing.setAttribute('aria-label',by('routeMapTitle').textContent);
+ const {points,offsets}=geometry;
+ const ratio=Math.cos(points[0][1]*Math.PI/180);
+ const xs=points.map(p=>p[0]*ratio),ys=points.map(p=>p[1]);
+ const left=Math.min(...xs),top=Math.max(...ys);
+ const scale=Math.min(410/(Math.max(...xs)-left||1),320/(top-Math.min(...ys)||1));
+ const xy=p=>[25+(p[0]*ratio-left)*scale,25+(top-p[1])*scale];
+ const make=(tag,attributes)=>{
+   const el=document.createElementNS('http://www.w3.org/2000/svg',tag);
+   for(const [key,value] of Object.entries(attributes))el.setAttribute(key,value);
+   drawing.append(el);return el;
+ };
+ make('polyline',{points:points.map(p=>xy(p).join(',')).join(' '),fill:'none',stroke:'#7619d8','stroke-width':4,'stroke-linejoin':'round'});
+ offsets.forEach((offset,index)=>{
+   const i=Math.floor(offset),a=points[i],b=points[i+1]??a;
+   const [cx,cy]=xy(a.map((value,j)=>value+(b[j]-value)*(offset-i)));
+   const circle=make('circle',{cx,cy,r:4,fill:'#fff',stroke:'#7619d8',tabindex:0,role:'button','aria-label':stops[index][1]});
+   circle.onclick=()=>{by('routeMapNote').textContent=stops[index][1]};
+   circle.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();circle.onclick()}};
+ });
+}
+by('openRouteMap').onclick=()=>{drawFullRoute();by('routeMapDialog').showModal()};
 function updateStopMap({map,name,id},dir){
  const point=stopCoordinates[dir]?.get(id);
  const query=point?point[1]+','+point[0]:name+' bus stop London';
@@ -243,7 +288,7 @@ function createTracks(){
      map.target='_blank';map.rel='noopener noreferrer';map.textContent='📍';
      const entry={cell,node,label,traffic,map,name,id};
      updateStopMap(entry,dir);
-     cell.append(traffic,node,label,map);track.append(cell);return entry;
+     cell.append(traffic,node,map,label);track.append(cell);return entry;
    });
  }
 }
@@ -463,6 +508,8 @@ async function refreshTraffic(){
  renderTraffic();render();
 }
 function renderTraffic(){
+ updateRouteLinks();
+ if(by('routeMapDialog').open)drawFullRoute();
  if(!routes||!nodes[direction]||!stops.length)return;
  const geometry=routeGeometry?.[direction];
  const available=geometry&&trafficReports;
