@@ -34,7 +34,7 @@ header nav,.choices{display:flex;gap:5px;flex-wrap:wrap}.choices button[aria-pre
 .bus-icon::before{content:'';position:absolute;inset:2px 2px auto;height:5px;border-radius:3px 2px 1px 1px;background:repeating-linear-gradient(90deg,#293741 0 4px,transparent 4px 6px);box-shadow:0 10px 0 -1px #293741}
 .bus-icon::after{content:'';position:absolute;bottom:-4px;left:3px;width:6px;height:6px;border-radius:50%;background:#222;box-shadow:19px 0 #222}
 .destination-display{display:flex;width:fit-content;max-width:100%;padding:9px 12px;background:#171614;border:3px solid #33302b;border-radius:10px;box-shadow:inset 0 0 0 1px #080807}
-.destination-display{color:#ffbd49}
+.destination-display{color:#e2fb37}
 .destination-display canvas[hidden]{display:none}
 .destination-display canvas{display:block;max-width:100%;height:auto;flex:none}
 .visually-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
@@ -86,61 +86,57 @@ function drawDestinationDisplay(){
  const label=terminal?line+' '+terminal.toUpperCase():line;
  by('ledHeading').textContent=label;
  const display=by('ledDisplay');
- const source=document.createElement('canvas');
- const mask=source.getContext('2d',{willReadFrequently:true});
- if(!mask){display.hidden=true;by('ledHeading').classList.remove('visually-hidden');return}
- const font='bold 17px system-ui, sans-serif';
- mask.font=font;
- source.width=Math.ceil(mask.measureText(label).width)+4;
- source.height=23;
- mask.font=font;
- mask.textBaseline='middle';
- mask.fillText(label,2,12);
- const pixels=mask.getImageData(0,0,source.width,source.height).data;
- const pitch=3;
- const strip=document.createElement('canvas');
- strip.width=source.width*pitch;
- strip.height=source.height*pitch;
- const dots=strip.getContext('2d');
- for(let y=0;y<source.height;y++){
-   for(let x=0;x<source.width;x++){
-     if(pixels[(y*source.width+x)*4+3]<=100)continue;
-     dots.fillStyle='#ffbd49';
-     dots.beginPath();
-     dots.arc(x*pitch+pitch/2,y*pitch+pitch/2,pitch*.26,0,Math.PI*2);
-     dots.fill();
+ const glyphs={
+ A:'0E111F1111',B:'1E111E111E',C:'0F1010100F',D:'1E1111111E',E:'1F101E101F',F:'1F101E1010',G:'0F1013110F',H:'11111F1111',I:'1F0404041F',J:'070101110E',K:'11121C1211',L:'101010101F',M:'111B151111',N:'1119151311',O:'0E1111110E',P:'1E111E1010',Q:'0E1111150F',R:'1E111E1211',S:'0F100E011E',T:'1F04040404',U:'111111110E',V:'1111110A04',W:'1111151B11',X:'110A040A11',Y:'110A040404',Z:'1F0204081F',
+ 0:'0E1115110E',1:'040C04040E',2:'0E1102041F',3:'1E0106011E',4:'0206121F02',5:'1F101E011E',6:'0E101E110E',7:'1F02040808',8:'0E110E110E',9:'0E110F010E',
+ '/':'0102040810','-':'00001F0000','·':'0000040000',"'":'0404000000','.':'0000000004'
+ };
+ const text=label.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/’/g,"'");
+ const pitch=5, rows=9;
+ const columns=Math.floor((display.closest('main').clientWidth-54)/pitch);
+ const width=Math.max(1,columns)*pitch;
+ const scale=window.devicePixelRatio||1;
+ display.style.width=width+'px';
+ display.style.height=rows*pitch+'px';
+ display.width=Math.round(width*scale);
+ display.height=Math.round(rows*pitch*scale);
+ const ctx=display.getContext('2d');
+ if(!ctx){display.hidden=true;by('ledHeading').classList.remove('visually-hidden');return}
+ ctx.scale(display.width/width,display.height/(rows*pitch));
+ const glyphRows=[0,1,1,2,3,3,4];
+ const stripWidth=text.length*6*pitch;
+ const cycle=stripWidth+5*pitch;
+ function paint(offset){
+   ctx.clearRect(0,0,width,rows*pitch);
+   for(let y=0;y<rows;y++){
+     for(let x=0;x<columns;x++){
+       const column=(x+offset/pitch)%(cycle/pitch);
+       const glyph=glyphs[text[Math.floor(column/6)]];
+       const bit=column%6;
+       const row=glyphRows[y-1];
+       const lit=glyph&&row!==undefined&&bit<5&&(parseInt(glyph.slice(row*2,row*2+2),16)&(16>>bit));
+       ctx.fillStyle=lit?'#e2fb37':'#414637';
+       if(lit){ctx.shadowColor='#c8ef32';ctx.shadowBlur=3*scale}
+       ctx.beginPath();
+       ctx.arc(x*pitch+2.5,y*pitch+2.5,1.85,0,Math.PI*2);
+       ctx.fill();
+       ctx.shadowBlur=0;
+     }
    }
  }
- const available=Math.max(pitch,display.closest('main').clientWidth-54);
- display.width=Math.min(strip.width,Math.floor(available/pitch)*pitch);
- display.height=strip.height;
- const ctx=display.getContext('2d');
- const background=document.createElement('canvas');
- background.width=background.height=pitch;
- const tile=background.getContext('2d');
- tile.fillStyle='#30261a';
- tile.beginPath();
- tile.arc(pitch/2,pitch/2,pitch*.26,0,Math.PI*2);
- tile.fill();
- const pattern=ctx.createPattern(background,'repeat');
- function paint(offset){
-   ctx.clearRect(0,0,display.width,display.height);
-   ctx.fillStyle=pattern;
-   ctx.fillRect(0,0,display.width,display.height);
-   ctx.drawImage(strip,-offset,0);
-   if(offset)ctx.drawImage(strip,strip.width+36-offset,0);
- }
- if(strip.width<=display.width){paint(0);return}
+ display.hidden=false;
+ by('ledHeading').classList.add('visually-hidden');
+ if(stripWidth<=width){paint(0);return}
  if(reducedMotion.matches){
-   paint(0);
-   ctx.clearRect(0,0,display.width,display.height);
-   ctx.drawImage(strip,0,0,display.width,display.height);
-   return;
+   display.hidden=true;by('ledHeading').classList.remove('visually-hidden');return;
  }
+ display.hidden=false;
+ by('ledHeading').classList.add('visually-hidden');
+ let lastOffset=0;
  const start=performance.now();
  function scroll(now){
    const offset=Math.floor(Math.max(0,now-start-850)*.042/pitch)*pitch;
-   paint(offset%(strip.width+36));
+   if(offset!==lastOffset){paint(offset%cycle);lastOffset=offset}
    ledFrame=requestAnimationFrame(scroll);
  }
  paint(0);
