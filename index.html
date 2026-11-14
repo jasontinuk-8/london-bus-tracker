@@ -27,7 +27,7 @@ body,.viewport,.status{background:#fff;color:#111}.card,.viewport{border-color:#
  .side .count{font-size:26px}
 }
 header nav,.choices{display:flex;gap:5px;flex-wrap:wrap}.choices button[aria-pressed=true],header button[aria-pressed=true]{background:#111;color:#fff;border-color:#111}.choices button,header button{font-size:13px;padding:6px 9px}header{flex-wrap:wrap}.controls{align-items:center}
-.journey-vehicle{font-weight:800;color:#111;border-bottom:0!important;padding-top:12px!important}.journey-vehicle+li{color:#555;font-size:12px}#clearVehicle{margin:2px 0 7px;padding:5px 9px;font-size:12px}
+.journey-vehicle{font-weight:800;color:#111;border-bottom:0!important;padding-top:12px!important}.journey-vehicle+li{color:#555;font-size:12px}#clearVehicle{margin:2px 0 7px;padding:5px 9px;font-size:12px}#vehiclePanel{border:1px solid #e1e6e2;border-radius:12px;padding:10px;margin-bottom:10px;background:#fafbf9}#vehiclePanel.active{border-color:#b58a00;background:#fffbe6;box-shadow:0 0 0 2px #ffe04a}
 .fleet{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.fleet button{padding:4px 7px;font:600 12px ui-monospace,monospace}.fleet button[aria-pressed=true]{background:#ffe04a;border-color:#8a6400}.stop-node.tracked{box-shadow:0 0 0 2px #8a6400}
 .route-search{display:flex;align-items:end;flex-wrap:wrap;gap:6px;margin:0 0 12px}.route-search input{width:108px;padding:8px;border:1px solid #bbb;border-radius:8px;font:inherit}.route-search label{display:grid;gap:4px}.route-search button{background:#111;color:#fff}.route-search p{margin:0;flex-basis:100%}.route-search p:empty{display:none}
 .stop-node.current::before{display:none}
@@ -116,10 +116,10 @@ header nav,.choices{display:flex;gap:5px;flex-wrap:wrap}.choices button[aria-pre
 <div id="inboundViewport" class="viewport" tabindex="0" data-label="inScroll"><div class="track inbound" id="inboundTrack"></div></div></div></div>
 <p class="muted legend" data-copy="legend"></p>
 </section>
-<section class="card side"><div><h2 data-copy="trafficTitle"></h2><p id="trafficDetail" class="muted" aria-live="polite"></p></div>
+<section class="card side"><div id="vehiclePanel"><h2 data-copy="positions"></h2><p class="muted" id="vehicleDetail" aria-live="polite">撳黃燈睇下一站。 / Select a yellow light to see the next stop.</p><button id="clearVehicle" type="button" data-copy="clearVehicle" hidden></button><ul class="list" id="vehicleList" aria-live="polite"></ul><h2 data-copy="fleet"></h2><div class="fleet" id="fleetList"></div></div>
 <p class="status muted" id="status" role="status">讀取 TfL 資料中… / Loading TfL data…</p>
 <div><h2 id="selectedStop">到站預測 / Arrivals</h2><strong class="count" id="centerEta">讀取中 / Loading</strong><ul class="list" id="arrivals"></ul><section id="departures" hidden><h3 data-copy="departures"></h3><ul class="list" id="departureList" aria-live="polite"></ul></section></div>
-<div><h2 data-copy="positions"></h2><p class="muted" id="vehicleDetail">撳黃燈睇下一站。 / Select a yellow light to see the next stop.</p><button id="clearVehicle" type="button" data-copy="clearVehicle" hidden></button><ul class="list" id="vehicleList"></ul><h2 data-copy="fleet"></h2><div class="fleet" id="fleetList"></div></div>
+<div><h2 data-copy="trafficTitle"></h2><p id="trafficDetail" class="muted" aria-live="polite"></p></div>
 </section>
 </div>
 <details class="card stops"><summary id="stopSummary">完整站序 · All stops</summary><ol id="stopList"></ol></details>
@@ -824,6 +824,7 @@ function render(){
  renderFleet(fleet,lookup);
  const details=by('vehicleList');details.replaceChildren();
  by('clearVehicle').hidden=!chosen;
+ by('vehiclePanel').classList.toggle('active',!!chosen);
  if(chosen){
    const selectedVehicles=[...chosen.ids].map(vehicleId=>({
      vehicleId,
