@@ -329,9 +329,9 @@ function fillRailDirectionPicker(){
    const destination=sequence.stopPoint.at(-1);
    if(seen.has(destination.id))return;
    seen.add(destination.id);
-   journeys.push({dir,branchIndex:index,stopIndex,destination});
+   journeys.push({dir,branchIndex:index,stopIndex,destination,remaining:sequence.stopPoint.length-stopIndex});
  });
- journeys.sort((a,b)=>a.destination.name.localeCompare(b.destination.name));
+ journeys.sort((a,b)=>b.remaining-a.remaining||a.destination.name.localeCompare(b.destination.name));
  railJourneys=journeys;
  by('branch').replaceChildren(...journeys.map((journey,i)=>new Option('',i)));
  refreshRailJourneyLabels();
