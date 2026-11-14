@@ -259,12 +259,34 @@ function fillBranchPicker(){
 by('branch').onchange=()=>{
  branchIndex[direction]=Number(by('branch').value);
  applyBranch(direction);
+ const opposite=directions.find(dir=>dir!==direction);
+ const route=routes[direction];
+ const reverseIndex=branches[opposite]?.findIndex(({stopPoint})=>
+   stopPoint[0].name===route.at(-1)[1] && stopPoint.at(-1).name===route[0][1]);
+ if(reverseIndex>=0){
+   branchIndex[opposite]=reverseIndex;
+   applyBranch(opposite);
+ }
  routeGeometry=null;
  createTracks();
  setDirection();
  applyLanguage();
  refreshTraffic();
 };
+function railRouteSequences(data, segments){
+ const stations=new Map(segments.flatMap(seq=>seq.stopPoint.map(stop=>[stop.id,stop])));
+ const seen=new Set();
+ const routes=[];
+ for(const {naptanIds} of data.orderedLineRoutes??[]){
+   if(!Array.isArray(naptanIds)||naptanIds.length<2)continue;
+   const stopPoint=naptanIds.map(id=>stations.get(id));
+   const key=naptanIds.join(',');
+   if(stopPoint.some(stop=>!stop)||seen.has(key))continue;
+   seen.add(key);
+   routes.push({stopPoint});
+ }
+ return routes.length?routes:segments;
+}
 function applyBranch(dir){
  const stops=branches[dir]?.[branchIndex[dir]]?.stopPoint??[];
  routes[dir]=stops.map(stop=>[stop.id,stop.name,rail?'':stop.stopLetter??'']);
@@ -821,7 +843,8 @@ async function start(){
        if(!response.ok)throw Error(response.status);
        const data=await response.json();
        if(data.mode&&data.mode!==mode)return [];
-       const sequences=(data.stopPointSequences??[]).filter(seq=>seq.stopPoint?.length);
+       const segments=(data.stopPointSequences??[]).filter(seq=>seq.stopPoint?.length);
+       const sequences=rail?railRouteSequences(data,segments):segments;
        if(rail)branches[dir]=sequences;
        hasVariants ||= !rail&&sequences.length>1;
        const longest=sequences.sort((a,b)=>b.stopPoint.length-a.stopPoint.length)[0];
