@@ -38,6 +38,17 @@ header nav,.choices{display:flex;gap:5px;flex-wrap:wrap}.choices button[aria-pre
 .destination-display canvas[hidden]{display:none}
 .destination-display canvas{display:block;max-width:100%;height:auto;flex:none}
 .visually-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+.track.traffic-enabled::before{left:28px}
+.track.traffic-enabled .stop-cell{grid-template-columns:14px 44px minmax(0,1fr)}
+.traffic-segment{grid-column:1;grid-row:1;align-self:stretch;position:relative;z-index:2;border:0;background:transparent;padding:0;width:14px;min-height:24px}
+.traffic-segment::after{content:'';position:absolute;top:50%;height:100%;left:3px;width:7px;border-radius:3px;background:#b0b6bd;pointer-events:none}
+.traffic-segment[data-level=alert]::after{background:#e78c20}
+.traffic-segment[data-level=severe]::after{background:#cb2431}
+.traffic-segment[aria-pressed=true]{outline:2px solid #333;outline-offset:-2px}
+.traffic-segment[hidden]{display:none}
+.track.traffic-enabled .stop-node{grid-column:2;grid-row:1}
+.track.traffic-enabled .station-label{grid-column:3;grid-row:1}
+#trafficDetail{white-space:pre-line}
 </style>
 <main>
 <header><strong data-copy="brand"></strong><nav><button id="zh" aria-pressed="true" lang="zh-Hant">中</button><button id="en" aria-pressed="false" lang="en">ENG</button></nav></header>
@@ -49,9 +60,9 @@ header nav,.choices{display:flex;gap:5px;flex-wrap:wrap}.choices button[aria-pre
 <div id="outboundViewport" class="viewport" tabindex="0" data-label="outScroll"><div class="track" id="outboundTrack"></div></div></div><div id="inboundPanel" hidden>
 <h2 class="track-heading"><span class="arrow" aria-hidden="true">↓</span> <span data-copy="in"></span></h2>
 <div id="inboundViewport" class="viewport" tabindex="0" data-label="inScroll"><div class="track inbound" id="inboundTrack"></div></div></div></div>
-<p class="muted legend" data-copy="legend"></p>
+<p class="muted legend" data-copy="legend"></p><p class="muted legend" data-copy="trafficLegend"></p>
 </section>
-<section class="card side">
+<section class="card side"><div><h2 data-copy="trafficTitle"></h2><p id="trafficDetail" class="muted" aria-live="polite"></p></div>
 <p class="status muted" id="status" role="status">讀取 TfL 資料中… / Loading TfL data…</p>
 <div><h2 id="selectedStop">到站預測 / Arrivals</h2><strong class="count" id="centerEta">讀取中 / Loading</strong><ul class="list" id="arrivals"></ul></div>
 <div><h2 data-copy="positions"></h2><p class="muted" id="vehicleDetail">撳黃燈睇下一站。 / Select a yellow light to see the next stop.</p><ul class="list" id="vehicleList"></ul><h2 data-copy="fleet"></h2><div class="fleet" id="fleetList"></div></div>
@@ -72,7 +83,7 @@ const copy={
  outScroll:['往 Ealing Broadway 全線站名','All stops towards Ealing Broadway'],
  inScroll:['往 Kingston 全線站名','All stops towards Kingston'],
  legend:['紅色雙層巴士：推算位置。閃動黃光：預計下一站。紅圈：上車站。','Red double-decker: estimated bus position. Flashing yellow: next stop. Red ring: boarding stop.'],
- positions:['巴士位置','Bus positions'],fleet:['路線上嘅巴士','Buses on this route'],source:['到站時間由 TfL 提供。巴士位置按預測推算。','TfL arrival predictions are used to estimate bus positions.'],
+ trafficTitle:['沿途交通通報','Road reports'],trafficLegend:['灰：暫無配對通報或資料。橙：有通報。紅：嚴重通報或封路。','Grey: no matched report or unavailable. Orange: report. Red: serious report or closure.'],positions:['巴士位置','Bus positions'],fleet:['路線上嘅巴士','Buses on this route'],source:['到站時間由 TfL 提供。巴士位置按預測推算。','TfL arrival predictions are used to estimate bus positions.'],
  official:['TfL 65 官方路線','Official TfL route 65']
 };
 let stopsFailed=false;
@@ -157,6 +168,7 @@ function applyLanguage(){
    by('stopSummary').textContent=tr('完整站序','All stops');
  }
  searchStatus();
+ renderTraffic();
  render();
 }
 for(const lang of ['zh','en'])by(lang).onclick=()=>{
@@ -215,11 +227,16 @@ function createTracks(){
        const span=document.createElement('span');span.className='station-letter';span.textContent=letter;label.append(span);
      }
      label.onclick=()=>{if(direction!==dir){direction=dir;setDirection(false)}choose(index,false)};
-     cell.append(node,label);track.append(cell);return {cell,node,label};
+     const traffic=document.createElement('button');
+     traffic.className='traffic-segment';
+     traffic.hidden=index===routes[dir].length-1;
+     traffic.onclick=()=>{trafficSelection=index;renderTraffic()};
+     cell.append(traffic,node,label);track.append(cell);return {cell,node,label,traffic};
    });
  }
 }
 function setDirection(scroll=true){
+ trafficSelection=null;
  drawDestinationDisplay();
  for(const dir of directions){
    by(dir).hidden=!routes[dir].length;
@@ -238,6 +255,7 @@ function setDirection(scroll=true){
  try{savedStop=localStorage.getItem('bus'+line+'-stop-'+direction)}catch{}
  const savedIndex=stops.findIndex(([id])=>id===savedStop);
  choose(Math.max(0,savedIndex),scroll);
+ renderTraffic();
 }
 function eta(p){const seconds=(Date.parse(p.expectedArrival)-Date.now())/1000;return seconds<=30?tr("即將到站","Due"):Math.ceil(seconds/60)+tr(" 分鐘"," min")}
 function item(list,label,action){
@@ -350,6 +368,96 @@ async function refresh(){
 }
 for(const dir of directions)by(dir).onclick=()=>{if(routes?.[dir]?.length&&direction!==dir){direction=dir;setDirection()}};
 station.onchange=()=>choose(Number(station.value));
+let trafficSelection=null, trafficReports=null, routeGeometry=null;
+const trafficApi='https://api.tfl.gov.uk/';
+async function trafficJson(path){
+ const response=await fetch(trafficApi+path,{signal:AbortSignal.timeout(12000)});
+ if(!response.ok)throw Error(response.status);
+ return response.json();
+}
+function project(point,path,minimum=0){
+ const lonScale=Math.cos(point[1]*Math.PI/180);
+ let best={metres:Infinity,offset:0};
+ for(let i=Math.floor(minimum);i<path.length-1;i++){
+   const a=path[i],b=path[i+1];
+   const x=(b[0]-a[0])*lonScale,y=b[1]-a[1];
+   const px=(point[0]-a[0])*lonScale,py=point[1]-a[1];
+   const length=x*x+y*y;
+   if(!length)continue;
+   const t=Math.max(Math.max(0,minimum-i),Math.min(1,(px*x+py*y)/length));
+   const metres=Math.hypot(px-x*t,py-y*t)*111195;
+   if(metres<best.metres)best={metres,offset:i+t};
+ }
+ return best;
+}
+function matchedGeometry(data,stops){
+ const positions=new Map(data.stopPointSequences.flatMap(seq=>seq.stopPoint).map(stop=>[stop.id,[stop.lon,stop.lat]]));
+ const paths=(data.lineStrings??[]).flatMap(value=>JSON.parse(value));
+ for(const path of paths){
+   if(path.length<2)continue;
+   for(const points of [path,[...path].reverse()]){
+     const offsets=[];
+     for(const [id] of stops){
+       if(!positions.has(id))break;
+       const projected=project(positions.get(id),points,offsets.at(-1)??0);
+       if(projected.metres>100)break;
+       offsets.push(projected.offset);
+     }
+     if(offsets.length===stops.length)return {points,offsets};
+   }
+ }
+ return null;
+}
+async function refreshTraffic(){
+ const geometries=Promise.allSettled(directions.map(async dir=>{
+   if(!routes[dir].length)return null;
+   if(routeGeometry?.[dir])return routeGeometry[dir];
+   const data=await trafficJson('Line/'+encodeURIComponent(line)+'/Route/Sequence/'+dir);
+   return matchedGeometry(data,routes[dir]);
+ })).then(results=>Object.fromEntries(directions.map((dir,i)=>[dir,results[i].value??null])));
+ const [geometry, reports]=await Promise.all([geometries,trafficJson('Road/all/Disruption?stripContent=true').catch(()=>null)]);
+ if(directions.some(dir=>geometry[dir]))routeGeometry=geometry;
+ trafficReports=Array.isArray(reports)?reports:null;
+ renderTraffic();
+}
+function renderTraffic(){
+ if(!routes||!nodes[direction]||!stops.length)return;
+ const geometry=routeGeometry?.[direction];
+ const available=geometry&&trafficReports;
+ const matches=new Map();
+ if(available){
+   const {points,offsets}=geometry;
+   for(const report of trafficReports){
+     let point;
+     try{point=JSON.parse(report.point)}catch{continue}
+     if(!Array.isArray(point)||point.length!==2||!point.every(Number.isFinite))continue;
+     const nearest=project(point,points);
+     if(nearest.metres>45||nearest.offset<offsets[0])continue;
+     const next=offsets.findIndex(offset=>offset>nearest.offset);
+     if(next<1)continue;
+     const index=next-1;
+     if(!matches.has(index))matches.set(index,[]);
+     matches.get(index).push(report);
+   }
+ }
+ const severity=report=>report.hasClosures||/^(serious|severe)$/i.test(report.severity);
+ for(const dir of directions)by(dir+'Track').classList.add('traffic-enabled');
+ nodes[direction].slice(0,-1).forEach(({traffic},index)=>{
+   const reports=matches.get(index)??[];
+   traffic.dataset.level=reports.some(severity)?'severe':reports.length?'alert':'unknown';
+   traffic.setAttribute('aria-label',tr('交通通報：','Road reports: ')+stops[index][1]+' → '+stops[index+1][1]);
+   traffic.setAttribute('aria-pressed',String(trafficSelection===index));
+ });
+ const detail=by('trafficDetail');
+ const unavailable=tr('暫未有可用嘅路段資料。','Segment data unavailable.');
+ if(trafficSelection===null){
+   detail.textContent=available?tr('撳站與站之間嘅色柱睇通報。','Select a segment to see road reports.'):unavailable;
+   return;
+ }
+ const reports=matches.get(trafficSelection)??[];
+ const message=reports.length?reports.map(report=>[report.location,report.currentUpdate||report.comments].filter(Boolean).join(' — ')).join('\n\n'):available?tr('暫無配對通報。','No matched reports.'):unavailable;
+ detail.textContent=stops[trafficSelection][1]+' → '+stops[trafficSelection+1][1]+'\n'+message;
+}
 async function start(){
  try{
    if(line==='65'||line==='371'){
@@ -382,7 +490,7 @@ async function start(){
      copy[key+'Scroll']=['往 '+destinations[dir]+' 全線站名','All stops towards '+destinations[dir]];
    }
    createTracks();applyLanguage();
-   setDirection();refresh();setInterval(refresh,30000);setInterval(render,5000);
+   setDirection();refreshTraffic();setInterval(refreshTraffic,300000);refresh();setInterval(refresh,30000);setInterval(render,5000);
  }catch{stopsFailed=true;routeError ||= 'unavailable';applyLanguage()}
 }
 by('routeInput').value=line;
