@@ -3,6 +3,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>65 巴士 · Live route 65</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
 *{box-sizing:border-box}body{margin:0;background:#f4f6f1;color:#153128;font:15px system-ui,sans-serif}main{max-width:1080px;margin:auto;padding:22px 16px 36px}header{display:flex;justify-content:space-between;align-items:center;gap:12px;border-bottom:1px solid #d5e0d8;padding-bottom:15px}a{color:#205d47}h1{font-size:clamp(29px,5vw,48px);letter-spacing:-.045em;margin:16px 0}.num{display:inline-block;background:#123f30;color:white;padding:2px 12px;border-radius:9px;margin-right:8px}.controls{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}button,select{font:inherit;color:inherit;border:1px solid #c9d8ce;border-radius:9px;background:#fff;padding:8px 10px}button,select,summary{cursor:pointer}select{max-width:100%}.layout{display:grid;grid-template-columns:minmax(0,1.8fr) minmax(250px,1fr);gap:14px}.card{background:#fff;border:1px solid #d5e0d8;border-radius:17px;padding:13px;min-width:0}.diagram{padding:5px 4px 10px}svg{width:100%;display:block;background:#f9faf7;border-radius:14px}.dot,.vehicle{cursor:pointer}.dot:focus-visible,.vehicle:focus-visible{outline:2px solid #166b50}.labels{font-weight:650;fill:#25493b}.side h2{font-size:17px;margin:6px 0}.side p{margin:8px 0;line-height:1.5}.muted{color:#496456;font-size:13px}.status{padding:8px 10px;background:#edf4ef;border-radius:8px}.count{font-size:36px;font-weight:800;letter-spacing:-.06em}.list{list-style:none;padding:0;margin:6px 0}.list li{border-bottom:1px solid #e6ede7;padding:7px 0}.list button{width:100%;text-align:left}.stops{margin-top:14px}.stops ol{columns:2;padding-left:32px}.stops li{break-inside:avoid;margin:4px 0}.stops button{text-align:left;padding:4px 6px}.legend{margin:8px 10px 0}.source{margin:14px 2px 0}@media(max-width:690px){.layout{grid-template-columns:1fr}.stops ol{columns:1}}
 
@@ -48,7 +49,9 @@ header nav,.choices{display:flex;gap:5px;flex-wrap:wrap}.choices button[aria-pre
 .stop-map:focus-visible{outline:2px solid #1464e0;border-radius:5px}
 .route-map-actions{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 10px;align-items:center}
 #routeMapDialog{width:min(92vw,650px);max-height:90vh;border:1px solid #cad8ce;border-radius:14px;padding:16px}
-#routeMapDialog svg{max-height:55vh}
+#routeMapDrawing{height:min(56vh,440px);min-height:230px;background:#e9ede8;border-radius:8px}
+#routeMapDrawing svg{width:auto;background:none;border-radius:0}
+#routeMapDrawing .leaflet-interactive:focus-visible{outline:2px solid #222}
 #routeMapDialog::backdrop{background:#0007}
 </style>
 <main>
@@ -71,8 +74,9 @@ header nav,.choices{display:flex;gap:5px;flex-wrap:wrap}.choices button[aria-pre
 </div>
 <details class="card stops"><summary id="stopSummary">完整站序 · All stops</summary><ol id="stopList"></ol></details>
 <p class="source muted"><span data-copy="source"></span> <a href="https://tfl.gov.uk/bus/route/65/" target="_blank" rel="noopener" data-copy="official"></a></p>
-<dialog id="routeMapDialog" aria-labelledby="routeMapTitle"><form method="dialog"><button data-copy="closeMap"></button></form><h2 id="routeMapTitle"></h2><p id="routeMapNote"></p><svg id="routeMapDrawing" viewBox="0 0 460 370" role="img"></svg></dialog>
+<dialog id="routeMapDialog" aria-labelledby="routeMapTitle"><form method="dialog"><button data-copy="closeMap"></button></form><h2 id="routeMapTitle"></h2><p id="routeMapNote"></p><div id="routeMapDrawing" role="region"></div></dialog>
 </main>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 const by=id=>document.getElementById(id);
 let language='zh';
@@ -227,35 +231,61 @@ function updateRouteLinks(){
  google.hidden=false;
  by('openRouteMap').disabled=false;
 }
+let fullRouteMap, routeOverlay, displayedGeometry, basemapFailed=false;
 function drawFullRoute(){
  const drawing=by('routeMapDrawing');
  const geometry=routeGeometry?.[direction];
- drawing.replaceChildren();
- by('routeMapTitle').textContent=line+' · '+towards(direction);
- by('routeMapNote').textContent=geometry?tr('TfL 路線走線圖。撳站點可睇站名。','TfL route outline. Select a stop to see its name.'):tr('暫時未能取得 TfL 全線走線。','The full TfL route outline is currently unavailable.');
+ const title=line+' · '+towards(direction);
+ by('routeMapTitle').textContent=title;
+ drawing.setAttribute('aria-label',title);
+ const note=by('routeMapNote');
+ if(!window.L){
+   drawing.hidden=true;
+   note.textContent=tr('街道地圖暫時載入唔到。','The street map could not load.');
+   return;
+ }
+ drawing.hidden=false;
+ if(!fullRouteMap){
+   fullRouteMap=L.map(drawing).setView([51.46,-0.3],11);
+   L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{
+     maxZoom:19,attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>'
+   }).on('tileerror',()=>{
+     basemapFailed=true;
+     if(by('routeMapDialog').open)drawFullRoute();
+   }).on('tileload',()=>{
+     if(!basemapFailed)return;
+     basemapFailed=false;
+     if(by('routeMapDialog').open)drawFullRoute();
+   }).addTo(fullRouteMap);
+   routeOverlay=L.layerGroup().addTo(fullRouteMap);
+ }
+ note.textContent=basemapFailed?tr('部分街道地圖暫時載入唔到。','Some street map tiles are unavailable.'):geometry
+   ?tr('拖動或放大地圖，撳站點睇站名。','Drag or zoom the map. Select a stop for its name.')
+   :tr('等候 TfL 全線走線。','Waiting for the TfL route outline.');
+ fullRouteMap.invalidateSize();
+ if(geometry===displayedGeometry)return;
+ displayedGeometry=geometry;
+ routeOverlay.clearLayers();
  if(!geometry)return;
- drawing.setAttribute('aria-label',by('routeMapTitle').textContent);
- const {points,offsets}=geometry;
- const ratio=Math.cos(points[0][1]*Math.PI/180);
- const xs=points.map(p=>p[0]*ratio),ys=points.map(p=>p[1]);
- const left=Math.min(...xs),top=Math.max(...ys);
- const scale=Math.min(410/(Math.max(...xs)-left||1),320/(top-Math.min(...ys)||1));
- const xy=p=>[25+(p[0]*ratio-left)*scale,25+(top-p[1])*scale];
- const make=(tag,attributes)=>{
-   const el=document.createElementNS('http://www.w3.org/2000/svg',tag);
-   for(const [key,value] of Object.entries(attributes))el.setAttribute(key,value);
-   drawing.append(el);return el;
- };
- make('polyline',{points:points.map(p=>xy(p).join(',')).join(' '),fill:'none',stroke:'#7619d8','stroke-width':4,'stroke-linejoin':'round'});
- offsets.forEach((offset,index)=>{
-   const i=Math.floor(offset),a=points[i],b=points[i+1]??a;
-   const [cx,cy]=xy(a.map((value,j)=>value+(b[j]-value)*(offset-i)));
-   const circle=make('circle',{cx,cy,r:4,fill:'#fff',stroke:'#7619d8',tabindex:0,role:'button','aria-label':stops[index][1]});
-   circle.onclick=()=>{by('routeMapNote').textContent=stops[index][1]};
-   circle.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();circle.onclick()}};
+ const color=direction==='inbound'?'#0877b9':'#7619d8';
+ const route=L.polyline(geometry.points.map(([lon,lat])=>[lat,lon]),{color,weight:5}).addTo(routeOverlay);
+ geometry.offsets.forEach((offset,index)=>{
+   const i=Math.floor(offset),a=geometry.points[i],b=geometry.points[i+1]??a;
+   const [lon,lat]=stopCoordinates[direction]?.get(stops[index][0])??a.map((value,j)=>value+(b[j]-value)*(offset-i));
+   const label=document.createElement('span');
+   label.textContent=stops[index][1]+(stops[index][2]?' · '+stops[index][2]:'');
+   const marker=L.circleMarker([lat,lon],{radius:5,color,fillColor:'#fff',fillOpacity:1}).bindPopup(label).addTo(routeOverlay);
+   const node=marker.getElement();
+   node.setAttribute('tabindex','0');
+   node.setAttribute('role','button');
+   node.setAttribute('aria-label',label.textContent);
+   node.addEventListener('keydown',event=>{
+     if(event.key==='Enter'||event.key===' '){event.preventDefault();marker.openPopup()}
+   });
  });
+ fullRouteMap.fitBounds(route.getBounds(),{padding:[22,22],maxZoom:15});
 }
-by('openRouteMap').onclick=()=>{drawFullRoute();by('routeMapDialog').showModal()};
+by('openRouteMap').onclick=()=>{by('routeMapDialog').showModal();drawFullRoute()};
 function updateStopMap({map,name,id},dir){
  const point=stopCoordinates[dir]?.get(id);
  const query=point?point[1]+','+point[0]:name+' bus stop London';
