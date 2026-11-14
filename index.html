@@ -52,6 +52,14 @@ header nav,.choices{display:flex;gap:5px;flex-wrap:wrap}.choices button[aria-pre
 #routeMapDrawing{height:min(56vh,440px);min-height:230px;background:#e9ede8;border-radius:8px}
 #routeMapDrawing svg{width:auto;background:none;border-radius:0}
 #routeMapDrawing .leaflet-interactive:focus-visible{outline:2px solid #222}
+.route-live-icon{display:grid;place-items:center;background:#fff;border:1px solid #6d6050;border-radius:50%;box-shadow:0 1px 4px #0004}
+.route-live-icon .bus-icon{display:block}
+.route-live-bus{border-radius:8px}
+.route-live-next{background:#ffe04a;border:2px solid #8a6400;animation:route-next-pulse 1.5s ease-in-out infinite;color:#292000;font-weight:bold}
+@keyframes route-next-pulse{50%{box-shadow:0 0 0 5px #ffdb2780}}
+@media(prefers-reduced-motion:reduce){.route-live-next{animation:none}}
+.route-live-warning{background:#fff6d4;font-size:16px}
+.route-map-popup{white-space:pre-line}
 #routeMapDialog::backdrop{background:#0007}
 </style>
 <main>
@@ -232,6 +240,70 @@ function updateRouteLinks(){
  by('openRouteMap').disabled=false;
 }
 let fullRouteMap, routeOverlay, displayedGeometry, basemapFailed=false;
+const liveMapMarkers=new Map();
+let mapFleet=[];
+function mapPointAt(points,offset){
+ const index=Math.floor(offset),start=points[index],end=points[index+1]??start;
+ const [lon,lat]=start.map((value,i)=>value+(end[i]-value)*(offset-index));
+ return [lat,lon];
+}
+function roadReportText(report){
+ return [report.location,report.hasClosures?tr('封路','Road closure'):report.subCategory||report.category,report.currentUpdate||report.comments].filter(Boolean).join(' — ');
+}
+function drawLiveMap(){
+ if(!by('routeMapDialog').open||!fullRouteMap)return;
+ const geometry=routeGeometry?.[direction];
+ const wanted=new Set();
+ function put(key,offset,kind,html,message,label,size,zIndexOffset){
+   const id=direction+'-'+key;
+   wanted.add(id);
+   const latLng=mapPointAt(geometry.points,offset);
+   let entry=liveMapMarkers.get(id);
+   if(!entry){
+     const popup=document.createElement('div');
+     popup.className='route-map-popup';
+     const icon=L.divIcon({className:'route-live-icon route-live-'+kind,html,iconSize:size});
+     const marker=L.marker(latLng,{icon,zIndexOffset}).bindPopup(popup).addTo(fullRouteMap);
+     entry={marker,popup};
+     liveMapMarkers.set(id,entry);
+   }else if(!entry.marker.getLatLng().equals(latLng)){
+     entry.marker.setLatLng(latLng);
+   }
+   if(entry.popup.textContent!==message)entry.popup.textContent=message;
+   entry.marker.getElement()?.setAttribute('aria-label',label);
+ }
+ if(geometry){
+   const {offsets}=geometry;
+   const byStop=new Map();
+   for(const bus of mapFleet){
+     if(bus.direction!==direction)continue;
+     const index=stops.findIndex(([id])=>id===bus.naptanId);
+     if(index<0)continue;
+     if(!byStop.has(index))byStop.set(index,[]);
+     byStop.get(index).push(bus);
+   }
+   for(const [index,buses] of byStop){
+     const next=stops[index][1];
+     const previous=stops[Math.max(0,index-1)][1];
+     const busLabel=tr('巴士推算位置','Estimated bus position');
+     const nextLabel=tr('預計下一站','Expected next stop');
+     const times=buses.map(bus=>(registration(bus)??bus.vehicleId)+' · '+eta(bus)).join('\n');
+     const segment=index?previous+' → '+next:next;
+     const position=index?(offsets[index-1]+offsets[index])/2:offsets[index];
+     put('bus-'+index,position,'bus','<span class="bus-icon" aria-hidden="true"></span>',busLabel+'\n'+segment+'\n'+times,busLabel+' · '+segment,[40,34],300);
+     put('next-'+index,offsets[index],'next','<span aria-hidden="true">↓</span>',nextLabel+' · '+next+'\n'+times,nextLabel+' · '+next,[24,24],200);
+   }
+   for(const [index,reports] of matchedReports){
+     const segment=stops[index][1]+' → '+stops[index+1][1];
+     put('warning-'+index,offsets[index]*.75+offsets[index+1]*.25,'warning','<span aria-hidden="true">⚠️</span>',segment+'\n\n'+reports.map(roadReportText).join('\n\n'),tr('交通通報','Road report')+' · '+segment,[27,27],400);
+   }
+ }
+ for(const [id,{marker}] of liveMapMarkers){
+   if(wanted.has(id))continue;
+   marker.remove();
+   liveMapMarkers.delete(id);
+ }
+}
 function drawFullRoute(){
  const drawing=by('routeMapDrawing');
  const geometry=routeGeometry?.[direction];
@@ -260,13 +332,13 @@ function drawFullRoute(){
    routeOverlay=L.layerGroup().addTo(fullRouteMap);
  }
  note.textContent=basemapFailed?tr('部分街道地圖暫時載入唔到。','Some street map tiles are unavailable.'):geometry
-   ?tr('拖動或放大地圖，撳站點睇站名。','Drag or zoom the map. Select a stop for its name.')
+   ?tr('紅巴士：推算位置。黃燈：下一站。⚠️：交通通報。撳圖示睇詳情。','Red bus: estimated position. Yellow light: next stop. ⚠️: road report. Select an icon for details.')
    :tr('等候 TfL 全線走線。','Waiting for the TfL route outline.');
  fullRouteMap.invalidateSize();
- if(geometry===displayedGeometry)return;
+ if(geometry===displayedGeometry){drawLiveMap();return}
  displayedGeometry=geometry;
  routeOverlay.clearLayers();
- if(!geometry)return;
+ if(!geometry){drawLiveMap();return}
  const color=direction==='inbound'?'#0877b9':'#7619d8';
  const route=L.polyline(geometry.points.map(([lon,lat])=>[lat,lon]),{color,weight:5}).addTo(routeOverlay);
  geometry.offsets.forEach((offset,index)=>{
@@ -284,6 +356,7 @@ function drawFullRoute(){
    });
  });
  fullRouteMap.fitBounds(route.getBounds(),{padding:[22,22],maxZoom:15});
+ drawLiveMap();
 }
 by('openRouteMap').onclick=()=>{by('routeMapDialog').showModal();drawFullRoute()};
 function updateStopMap({map,name,id},dir){
@@ -443,6 +516,8 @@ function render(){
    });
  }
  const fleet=[...groups[direction].values()].flat().sort((a,b)=>a.vehicleId.localeCompare(b.vehicleId));
+ mapFleet=fleet;
+ drawLiveMap();
  renderFleet(fleet,lookup);
  const details=by('vehicleList');details.replaceChildren();
  if(chosen){
@@ -539,7 +614,6 @@ async function refreshTraffic(){
 }
 function renderTraffic(){
  updateRouteLinks();
- if(by('routeMapDialog').open)drawFullRoute();
  if(!routes||!nodes[direction]||!stops.length)return;
  const geometry=routeGeometry?.[direction];
  const available=geometry&&trafficReports;
@@ -562,6 +636,7 @@ function renderTraffic(){
    }
  }
  matchedReports=matches;
+ if(by('routeMapDialog').open)drawFullRoute();
  nodes[direction].slice(0,-1).forEach(({traffic},index)=>{
    const reports=matches.get(index)??[];
    traffic.hidden=!reports.length;
@@ -575,7 +650,7 @@ function renderTraffic(){
    return;
  }
  const reports=matches.get(trafficSelection)??[];
- const message=reports.length?reports.map(report=>[report.location,report.hasClosures?tr('封路','Road closure'):report.subCategory||report.category,report.currentUpdate||report.comments].filter(Boolean).join(' — ')).join('\n\n'):available?tr('暫無配對通報。','No matched reports.'):unavailable;
+ const message=reports.length?reports.map(roadReportText).join('\n\n'):available?tr('暫無配對通報。','No matched reports.'):unavailable;
  detail.textContent=stops[trafficSelection][1]+' → '+stops[trafficSelection+1][1]+'\n'+message;
 }
 async function start(){
