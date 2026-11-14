@@ -38,16 +38,10 @@ header nav,.choices{display:flex;gap:5px;flex-wrap:wrap}.choices button[aria-pre
 .destination-display canvas[hidden]{display:none}
 .destination-display canvas{display:block;max-width:100%;height:auto;flex:none}
 .visually-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
-.track.traffic-enabled::before{left:28px}
-.track.traffic-enabled .stop-cell{grid-template-columns:14px 44px minmax(0,1fr)}
-.traffic-segment{grid-column:1;grid-row:1;align-self:stretch;position:relative;z-index:2;border:0;background:transparent;padding:0;width:14px;min-height:24px}
-.traffic-segment::after{content:'';position:absolute;top:50%;height:100%;left:3px;width:7px;border-radius:3px;background:#b0b6bd;pointer-events:none}
-.traffic-segment[data-level=alert]::after{background:#e78c20}
-.traffic-segment[data-level=severe]::after{background:#cb2431}
-.traffic-segment[aria-pressed=true]{outline:2px solid #333;outline-offset:-2px}
-.traffic-segment[hidden]{display:none}
-.track.traffic-enabled .stop-node{grid-column:2;grid-row:1}
-.track.traffic-enabled .station-label{grid-column:3;grid-row:1}
+.track,.track.inbound{padding-left:28px}.track::before{left:34px}
+.traffic-segment{position:absolute;z-index:2;left:-23px;top:100%;transform:translateY(-50%);width:24px;height:24px;padding:0;border:1px solid #e1bc63;border-radius:50%;background:#fff8df;font-size:13px}
+.traffic-segment[aria-pressed=true]{outline:2px solid #333}
+.arrival-delay{display:block;color:#a13b10}
 #trafficDetail{white-space:pre-line}
 </style>
 <main>
@@ -60,7 +54,7 @@ header nav,.choices{display:flex;gap:5px;flex-wrap:wrap}.choices button[aria-pre
 <div id="outboundViewport" class="viewport" tabindex="0" data-label="outScroll"><div class="track" id="outboundTrack"></div></div></div><div id="inboundPanel" hidden>
 <h2 class="track-heading"><span class="arrow" aria-hidden="true">↓</span> <span data-copy="in"></span></h2>
 <div id="inboundViewport" class="viewport" tabindex="0" data-label="inScroll"><div class="track inbound" id="inboundTrack"></div></div></div></div>
-<p class="muted legend" data-copy="legend"></p><p class="muted legend" data-copy="trafficLegend"></p>
+<p class="muted legend" data-copy="legend"></p>
 </section>
 <section class="card side"><div><h2 data-copy="trafficTitle"></h2><p id="trafficDetail" class="muted" aria-live="polite"></p></div>
 <p class="status muted" id="status" role="status">讀取 TfL 資料中… / Loading TfL data…</p>
@@ -83,7 +77,7 @@ const copy={
  outScroll:['往 Ealing Broadway 全線站名','All stops towards Ealing Broadway'],
  inScroll:['往 Kingston 全線站名','All stops towards Kingston'],
  legend:['紅色雙層巴士：推算位置。閃動黃光：預計下一站。紅圈：上車站。','Red double-decker: estimated bus position. Flashing yellow: next stop. Red ring: boarding stop.'],
- trafficTitle:['沿途交通通報','Road reports'],trafficLegend:['灰：暫無配對通報或資料。橙：有通報。紅：嚴重通報或封路。','Grey: no matched report or unavailable. Orange: report. Red: serious report or closure.'],positions:['巴士位置','Bus positions'],fleet:['路線上嘅巴士','Buses on this route'],source:['到站時間由 TfL 提供。巴士位置按預測推算。','TfL arrival predictions are used to estimate bus positions.'],
+ trafficTitle:['沿途交通通報','Road reports'],positions:['巴士位置','Bus positions'],fleet:['路線上嘅巴士','Buses on this route'],source:['到站時間由 TfL 提供。巴士位置按預測推算。','TfL arrival predictions are used to estimate bus positions.'],
  official:['TfL 65 官方路線','Official TfL route 65']
 };
 let stopsFailed=false;
@@ -229,14 +223,14 @@ function createTracks(){
      label.onclick=()=>{if(direction!==dir){direction=dir;setDirection(false)}choose(index,false)};
      const traffic=document.createElement('button');
      traffic.className='traffic-segment';
-     traffic.hidden=index===routes[dir].length-1;
+     traffic.hidden=true;traffic.textContent='⚠️';
      traffic.onclick=()=>{trafficSelection=index;renderTraffic()};
      cell.append(traffic,node,label);track.append(cell);return {cell,node,label,traffic};
    });
  }
 }
 function setDirection(scroll=true){
- trafficSelection=null;
+ trafficSelection=null;matchedReports=new Map();
  drawDestinationDisplay();
  for(const dir of directions){
    by(dir).hidden=!routes[dir].length;
@@ -304,9 +298,30 @@ function render(){
  by('selectedStop').textContent=name+(letter?' · '+letter:'');
  by('centerEta').textContent=arrivals.length?eta(arrivals[0]):usable?tr("暫無預測","No predictions"):failed||stale?tr("未有資料","No data"):tr("讀取中","Loading");
  by('status').textContent=usable?tr("TfL 更新","Updated ")+new Date(updated).toLocaleTimeString('en-GB',{timeZone:'Europe/London'})+(failed?tr(" · 更新失敗，顯示上次資料","Refresh failed, showing last update"):tr(" · 倫敦時間","London time")):stale?tr("資料已過期，等候更新","Data expired, awaiting refresh"):failed?tr("暫時連唔到 TfL，請重試。","TfL unavailable. Try refreshing."):tr("讀取 TfL 資料中…","Loading TfL data\u2026");
+ by('centerEta').parentElement.querySelector(':scope > .arrival-delay')?.remove();
  const list=by('arrivals');list.replaceChildren();
  if(!arrivals.length)item(list,usable?tr("TfL 暫時未有呢個站嘅預測。","No TfL predictions for this stop."):tr("等候即時到站資料。","Waiting for live arrivals."));
- else arrivals.slice(0,3).forEach(p=>item(list,eta(p)));
+ else arrivals.slice(0,3).forEach((p,index)=>{
+   item(list,eta(p));
+   const previous=p.vehicleId?previousArrivals.get(arrivalKey(p)):undefined;
+   const minutes=Math.round((Date.parse(p.expectedArrival)-previous)/60000);
+   if(!(minutes>0))return;
+   const delay=document.createElement('small');
+   delay.className='arrival-delay';
+   delay.textContent=tr('預計遲 '+minutes+' 分鐘','Expected '+minutes+' min later');
+   if(index===0)by('centerEta').after(delay);
+   else list.lastElementChild.append(delay);
+   const next=records.find(candidate=>candidate.vehicleId===p.vehicleId && arrivalKey({...candidate,naptanId:p.naptanId})===arrivalKey(p));
+   const firstSegment=lookup.get(next?.naptanId)-1;
+   const relevant=[...matchedReports].filter(([segment])=>segment>=firstSegment&&segment<selected);
+   const locations=[...new Set(relevant.flatMap(([,reports])=>reports.map(report=>report.location).filter(Boolean)))];
+   if(locations.length){
+     const note=document.createElement('span');
+     note.className='arrival-delay';
+     note.textContent=tr('沿途 TfL 通報：','TfL reports ahead: ')+locations.join(' · ');
+     delay.append(note);
+   }
+ });
  const groups={outbound:new Map(),inbound:new Map()};
  const routeIds=Object.fromEntries(directions.map(dir=>[dir,new Set(routes[dir].map(row=>row[0]))]));
  const seen=new Set();
@@ -362,6 +377,10 @@ async function refresh(){
    if(!response.ok)throw Error(response.status);
    const data=await response.json();
    if(!Array.isArray(data))throw Error('Invalid arrivals');
+   previousArrivals=new Map(Date.now()-updated<90000
+     ? predictions.filter(p=>p.vehicleId&&Date.parse(p.expectedArrival)>Date.now())
+       .map(p=>[arrivalKey(p),Date.parse(p.expectedArrival)])
+     : []);
    predictions=data;updated=Date.now();failed=false;
  }catch{failed=true}
  finally{busy=false;render()}
@@ -369,6 +388,8 @@ async function refresh(){
 for(const dir of directions)by(dir).onclick=()=>{if(routes?.[dir]?.length&&direction!==dir){direction=dir;setDirection()}};
 station.onchange=()=>choose(Number(station.value));
 let trafficSelection=null, trafficReports=null, routeGeometry=null;
+let matchedReports=new Map(), previousArrivals=new Map();
+const arrivalKey=p=>JSON.stringify([p.vehicleId,p.direction,p.naptanId,p.destinationNaptanId??p.destinationName]);
 const trafficApi='https://api.tfl.gov.uk/';
 async function trafficJson(path){
  const response=await fetch(trafficApi+path,{signal:AbortSignal.timeout(12000)});
@@ -418,7 +439,7 @@ async function refreshTraffic(){
  const [geometry, reports]=await Promise.all([geometries,trafficJson('Road/all/Disruption?stripContent=true').catch(()=>null)]);
  if(directions.some(dir=>geometry[dir]))routeGeometry=geometry;
  trafficReports=Array.isArray(reports)?reports:null;
- renderTraffic();
+ renderTraffic();render();
 }
 function renderTraffic(){
  if(!routes||!nodes[direction]||!stops.length)return;
@@ -428,6 +449,8 @@ function renderTraffic(){
  if(available){
    const {points,offsets}=geometry;
    for(const report of trafficReports){
+     const now=Date.now();
+     if(Date.parse(report.startDateTime)>now||Date.parse(report.endDateTime)<now)continue;
      let point;
      try{point=JSON.parse(report.point)}catch{continue}
      if(!Array.isArray(point)||point.length!==2||!point.every(Number.isFinite))continue;
@@ -440,22 +463,21 @@ function renderTraffic(){
      matches.get(index).push(report);
    }
  }
- const severity=report=>report.hasClosures||/^(serious|severe)$/i.test(report.severity);
- for(const dir of directions)by(dir+'Track').classList.add('traffic-enabled');
+ matchedReports=matches;
  nodes[direction].slice(0,-1).forEach(({traffic},index)=>{
    const reports=matches.get(index)??[];
-   traffic.dataset.level=reports.some(severity)?'severe':reports.length?'alert':'unknown';
+   traffic.hidden=!reports.length;
    traffic.setAttribute('aria-label',tr('交通通報：','Road reports: ')+stops[index][1]+' → '+stops[index+1][1]);
    traffic.setAttribute('aria-pressed',String(trafficSelection===index));
  });
  const detail=by('trafficDetail');
  const unavailable=tr('暫未有可用嘅路段資料。','Segment data unavailable.');
  if(trafficSelection===null){
-   detail.textContent=available?tr('撳站與站之間嘅色柱睇通報。','Select a segment to see road reports.'):unavailable;
+   detail.textContent=available?(matches.size?tr('撳 ⚠️ 睇通報。','Select ⚠️ to read a report.'):tr('暫無配對通報。','No matched reports.')):unavailable;
    return;
  }
  const reports=matches.get(trafficSelection)??[];
- const message=reports.length?reports.map(report=>[report.location,report.currentUpdate||report.comments].filter(Boolean).join(' — ')).join('\n\n'):available?tr('暫無配對通報。','No matched reports.'):unavailable;
+ const message=reports.length?reports.map(report=>[report.location,report.hasClosures?tr('封路','Road closure'):report.subCategory||report.category,report.currentUpdate||report.comments].filter(Boolean).join(' — ')).join('\n\n'):available?tr('暫無配對通報。','No matched reports.'):unavailable;
  detail.textContent=stops[trafficSelection][1]+' → '+stops[trafficSelection+1][1]+'\n'+message;
 }
 async function start(){
