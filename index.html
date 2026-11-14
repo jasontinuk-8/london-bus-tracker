@@ -11,7 +11,7 @@
 body,.viewport,.status{background:#fff;color:#111}.card,.viewport{border-color:#ddd}.muted{color:#333}.num,.arrow{background:#7619d8}.track{--route-color:#7619d8}.track.inbound{--route-color:#0877b9}.track-heading:has(+ #inboundViewport) .arrow{background:#0877b9}
 .track::before{top:32px;border-top:16px solid var(--route-color);border-radius:12px}.stop-node{border:0;position:relative;color:#111;font-size:0}.stop-node::before{content:'';width:12px;height:12px;border-radius:50%;background:#fff}.stop-node.active{border:5px solid #cf162b;background:transparent;width:36px;height:36px;margin-top:21px;margin-bottom:13px;font-size:0}.stop-node[data-selected=true]{box-shadow:none}.stop-node.active::after{content:attr(data-arrow);font-size:20px;color:#cf162b;position:absolute;left:31px;top:-2px}.inbound .stop-node.active::after{left:auto;right:31px}
 
-.route-columns{display:grid;grid-template-columns:minmax(0,1fr)}.track-heading{min-height:48px}.viewport{height:min(62vh,620px);overflow:auto;overscroll-behavior:contain}.track,.track.inbound{display:block;width:100%;padding:8px;border:0}.track::before{inset:8px auto 8px 14px;border:0;width:20px;background:var(--route-color)}.stop-cell{display:grid;grid-template-columns:44px minmax(0,1fr);align-items:center;text-align:left;width:100%;min-height:36px;padding:0}.station-label{text-align:left;min-height:36px;font-size:13px;padding-left:4px}.stop-node,.stop-node.active{width:32px;height:32px;margin:0;border:0;background:transparent}.stop-node.active::after,.inbound .stop-node.active::after{content:none}.stop-node.current::before,.stop-node.next::before{width:21px;height:21px;background:#ffe04a;border:2px solid #8a6400;box-shadow:0 0 6px 3px #ffdb27,0 0 13px #ffcf00}.stop-node.next::before{animation:next-glow 1.5s ease-in-out infinite}.stop-node.current.next::before{animation:none}.stop-node.current.next{animation:next-outline 1.5s ease-in-out infinite}.stop-node[data-selected=true]{outline:3px solid #cf162b;outline-offset:1px}.station-label[aria-pressed=true]{color:#a91022}@keyframes next-glow{50%{opacity:.34;box-shadow:none}}@keyframes next-outline{50%{box-shadow:0 0 0 3px #ffd400}}@media(prefers-reduced-motion:reduce){.stop-node.next::before,.stop-node.current.next{animation:none}.stop-node.next{border:2px dashed #8a6400}}
+.route-columns{display:grid;grid-template-columns:minmax(0,1fr)}.track-heading{min-height:48px}.viewport{height:min(62vh,620px);overflow:auto;overscroll-behavior:contain}.track,.track.inbound{display:block;width:100%;padding:8px;border:0}.track::before{inset:8px auto 8px 14px;border:0;width:20px;background:var(--route-color)}.stop-cell{display:grid;grid-template-columns:44px minmax(0,1fr);align-items:center;text-align:left;width:100%;min-height:36px;padding:0}.station-label{text-align:left;min-height:36px;font-size:13px;padding-left:4px}.stop-node,.stop-node.active{width:32px;height:32px;margin:0;border:0;background:transparent}.stop-node.active::after,.inbound .stop-node.active::after{content:none}.stop-node.next::before{width:21px;height:21px;background:#ffe04a;border:2px solid #8a6400;box-shadow:0 0 6px 3px #ffdb27,0 0 13px #ffcf00}.stop-node.next::before{animation:next-glow 1.5s ease-in-out infinite}.stop-node.current.next{animation:next-outline 1.5s ease-in-out infinite}.stop-node[data-selected=true]{outline:3px solid #cf162b;outline-offset:1px}.station-label[aria-pressed=true]{color:#a91022}@keyframes next-glow{50%{opacity:.34;box-shadow:none}}@keyframes next-outline{50%{box-shadow:0 0 0 3px #ffd400}}@media(prefers-reduced-motion:reduce){.stop-node.next::before,.stop-node.current.next{animation:none}.stop-node.next{border:2px dashed #8a6400}}
 .station-letter{display:inline-block;margin:0 0 0 8px;padding:2px 5px;border:1px solid #ddd;border-radius:4px;vertical-align:baseline;color:inherit}
 
 .layout{grid-template-columns:minmax(0,1.45fr) minmax(0,1fr);align-items:start}
@@ -28,6 +28,11 @@ body,.viewport,.status{background:#fff;color:#111}.card,.viewport{border-color:#
 header nav,.choices{display:flex;gap:5px;flex-wrap:wrap}.choices button[aria-pressed=true],header button[aria-pressed=true]{background:#111;color:#fff;border-color:#111}.choices button,header button{font-size:13px;padding:6px 9px}header{flex-wrap:wrap}.controls{align-items:center}
 .fleet{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.fleet button{padding:4px 7px;font:600 12px ui-monospace,monospace}.fleet button[aria-pressed=true]{background:#ffe04a;border-color:#8a6400}.stop-node.tracked{box-shadow:0 0 0 2px #8a6400}
 .route-search{display:flex;align-items:end;flex-wrap:wrap;gap:6px;margin:0 0 12px}.route-search input{width:108px;padding:8px;border:1px solid #bbb;border-radius:8px;font:inherit}.route-search label{display:grid;gap:4px}.route-search button{background:#111;color:#fff}.route-search p{margin:0;flex-basis:100%}.route-search p:empty{display:none}
+.stop-node.current::before{display:none}
+.bus-icon{display:none;position:relative;width:27px;height:19px;border:1px solid #89141d;border-radius:7px 5px 2px 3px;background:linear-gradient(#d9303b 46%,#fff4dd 46% 53%,#bd1624 53%);box-shadow:0 0 0 1px #fff;margin-bottom:3px}
+.stop-node.current .bus-icon{display:block}
+.bus-icon::before{content:'';position:absolute;inset:2px 2px auto;height:5px;border-radius:3px 2px 1px 1px;background:repeating-linear-gradient(90deg,#293741 0 4px,transparent 4px 6px);box-shadow:0 8px 0 -1px #293741}
+.bus-icon::after{content:'';position:absolute;bottom:-4px;left:3px;width:6px;height:6px;border-radius:50%;background:#222;box-shadow:14px 0 #222}
 </style>
 <main>
 <header><strong data-copy="brand"></strong><nav><button id="zh" aria-pressed="true" lang="zh-Hant">中</button><button id="en" aria-pressed="false" lang="en">ENG</button></nav></header>
@@ -61,7 +66,7 @@ const copy={
  out:['往 Ealing Broadway','Towards Ealing Broadway'],in:['往 Kingston · Brook Street','Towards Kingston · Brook Street'],
  outScroll:['往 Ealing Broadway 全線站名','All stops towards Ealing Broadway'],
  inScroll:['往 Kingston 全線站名','All stops towards Kingston'],
- legend:['長亮黃光：巴士推算位置。閃動黃光：預計下一站。紅圈：上車站。','Steady yellow: estimated bus position. Flashing yellow: next stop. Red ring: boarding stop.'],
+ legend:['紅色雙層巴士：推算位置。閃動黃光：預計下一站。紅圈：上車站。','Red double-decker: estimated bus position. Flashing yellow: next stop. Red ring: boarding stop.'],
  positions:['巴士位置','Bus positions'],fleet:['路線上嘅巴士','Buses on this route'],source:['到站時間由 TfL 提供。巴士位置按預測推算。','TfL arrival predictions are used to estimate bus positions.'],
  official:['TfL 65 官方路線','Official TfL route 65']
 };
@@ -131,6 +136,7 @@ function createTracks(){
    nodes[dir]=routes[dir].map(([id,name,letter],index)=>{
      const cell=document.createElement('div');cell.className='stop-cell';
      const node=document.createElement('button');node.className='stop-node';
+     const icon=document.createElement('span');icon.className='bus-icon';icon.setAttribute('aria-hidden','true');node.append(icon);
      const label=document.createElement('button');label.className='station-label';
      label.textContent=name;
      if(letter){
@@ -253,7 +259,7 @@ function render(){
    });
  }else{
    const count=fleet.length;
-   by('vehicleDetail').textContent=count?tr(count+' 架車有預測，撳黃燈睇詳情。',count+' bus'+(count===1?'':'es')+' with predictions. Select a yellow light.'):tr("暫無巴士位置。","No bus positions available.");
+   by('vehicleDetail').textContent=count?tr(count+' 架車有預測，撳巴士圖示或黃燈睇詳情。',count+' bus'+(count===1?'':'es')+' with predictions. Select a bus icon or yellow light.'):tr("暫無巴士位置。","No bus positions available.");
  }
 }
 
