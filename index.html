@@ -837,7 +837,7 @@ function render(){
        ?tr('推算位置：','Estimated position: ')+stops[firstIndex-1][1]+' → '+stops[firstIndex][1]
        :tr('預計由總站開出','Expected to depart terminus');
      item(details,position);
-     calls.forEach((p,index)=>item(details,(index+1)+'. '+stopAndTime(p)));
+     calls.forEach(p=>item(details,stopAndTime(p)));
    });
  }else{
    const count=fleet.length;
