@@ -92,7 +92,7 @@ header nav,.choices{display:flex;gap:5px;flex-wrap:wrap}.choices button[aria-pre
 </section>
 <section class="card side"><div><h2 data-copy="trafficTitle"></h2><p id="trafficDetail" class="muted" aria-live="polite"></p></div>
 <p class="status muted" id="status" role="status">讀取 TfL 資料中… / Loading TfL data…</p>
-<div><h2 id="selectedStop">到站預測 / Arrivals</h2><strong class="count" id="centerEta">讀取中 / Loading</strong><ul class="list" id="arrivals"></ul></div>
+<div><h2 id="selectedStop">到站預測 / Arrivals</h2><strong class="count" id="centerEta">讀取中 / Loading</strong><ul class="list" id="arrivals"></ul><section id="departures" hidden><h3 data-copy="departures"></h3><ul class="list" id="departureList" aria-live="polite"></ul></section></div>
 <div><h2 data-copy="positions"></h2><p class="muted" id="vehicleDetail">撳黃燈睇下一站。 / Select a yellow light to see the next stop.</p><ul class="list" id="vehicleList"></ul><h2 data-copy="fleet"></h2><div class="fleet" id="fleetList"></div></div>
 </section>
 </div>
@@ -108,6 +108,7 @@ try{if(localStorage.getItem('bus65-language')==='en')language='en'}catch{}
 const tr=(zh,en)=>language==='en'?en:zh;
 const copy={
  brand:['倫敦巴士','London Buses'],
+ departures:['下一班開車','Next departures'],
  busMode:['巴士','Bus'],railLine:['路線','Line'],branch:['分支','Branch'],locate:['搵最近車站','Find nearest stop'],
  route:['巴士路線','Bus route'],searchLabel:['巴士號碼','Bus number'],search:['搜尋','Search'],title:['即時站序','Live stops'],direction:['行車方向','Direction'],boarding:['上車站','Boarding stop'],
  out:['往 Ealing Broadway','Towards Ealing Broadway'],in:['往 Kingston · Brook Street','Towards Kingston · Brook Street'],
@@ -612,8 +613,71 @@ function onSelectedBranch(p){
  const destinationIn=seq=>seq.stopPoint.some(stop=>stop.id===p.destinationNaptanId);
  return !options.some(destinationIn)||destinationIn(options[branchIndex[p.direction]]);
 }
+const departureTimetables=new Map();
+const londonClock=new Intl.DateTimeFormat('en-GB',{
+ timeZone:'Europe/London',weekday:'long',hour:'2-digit',minute:'2-digit',hourCycle:'h23'
+});
+function scheduledDepartures(data,nextStop,now){
+ const parts=Object.fromEntries(londonClock.formatToParts(now).map(({type,value})=>[type,value]));
+ const days=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+ const today=days.indexOf(parts.weekday);
+ const minuteNow=Number(parts.hour)*60+Number(parts.minute);
+ const names=new Map([...(data.stations??[]),...(data.stops??[])].map(stop=>[stop.id,stop.name]));
+ const departures=new Map();
+ for(const route of data.timetable?.routes??[]){
+   const intervals=new Map((route.stationIntervals??[]).map(entry=>[String(entry.id),entry.intervals]));
+   for(const offset of [-1,0,1]){
+     const day=(today+offset+7)%7;
+     const dayName=days[day];
+     for(const schedule of route.schedules??[]){
+       const name=schedule.name??'';
+       const matches=day>=1&&day<=5
+         ? name===dayName||/monday\s*-\s*friday|weekdays/i.test(name)
+         : new RegExp('^'+dayName+'s?\\b','i').test(name)||/saturday\s*(?:-|and|&|\/)+\s*sunday|weekends/i.test(name);
+       if(!matches)continue;
+       for(const journey of [...(schedule.knownJourneys??[]),schedule.firstJourney,schedule.lastJourney].filter(Boolean)){
+         const path=intervals.get(String(journey.intervalId));
+         if(!path?.some(stop=>stop.stopId===nextStop))continue;
+         const minutes=Number(journey.hour)*60+Number(journey.minute)+1440*offset;
+         if(!Number.isFinite(minutes)||minutes<minuteNow)continue;
+         const destination=names.get(path.at(-1).stopId)??'';
+         departures.set(minutes+'|'+destination,{minutes,destination});
+       }
+     }
+   }
+ }
+ return [...departures.values()].sort((a,b)=>a.minutes-b.minutes).slice(0,3);
+}
+function renderDepartures(){
+ const panel=by('departures');
+ const origin=stops[0]?.[0],nextStop=stops[1]?.[0];
+ panel.hidden=!rail||selected!==0||!nextStop;
+ if(panel.hidden)return;
+ const list=by('departureList');
+ const key=direction+'|'+origin;
+ if(!departureTimetables.has(key)){
+   departureTimetables.set(key,{loading:true});
+   trafficJson('Line/'+line+'/Timetable/'+encodeURIComponent(origin)+'?direction='+direction)
+     .then(data=>departureTimetables.set(key,{data}))
+     .catch(()=>departureTimetables.set(key,{failed:true}))
+     .finally(renderDepartures);
+ }
+ const {loading,data,failed}=departureTimetables.get(key);
+ const rows=data?scheduledDepartures(data,nextStop,new Date()):[];
+ const labels=rows.map(({minutes,destination})=>{
+   const time=[Math.floor(minutes/60)%24,minutes%60].map(value=>String(value).padStart(2,'0')).join(':');
+   return tr('按時間表 ','Scheduled ')+time+(minutes>=1440?tr('（聽日）',' (tomorrow)'):'')+(destination?' · '+destination:'');
+ });
+ if(!labels.length)labels.push(loading?tr('讀取班次表…','Loading timetable…'):
+   failed?tr('暫時讀取唔到班次表。','Timetable unavailable.'):
+   tr('暫無開車時間。','No scheduled departures found.'));
+ if([...list.children].map(el=>el.textContent).join('\n')===labels.join('\n'))return;
+ list.replaceChildren();
+ labels.forEach(label=>item(list,label));
+}
 function render(){
  if(!stops.length)return;
+ renderDepartures();
  by('stopSummary').textContent=tr('完整站序 · '+stops.length+' 個站','All stops · '+stops.length);
  const stale=updated&&Date.now()-updated>90000;
  const usable=updated&&!stale;
