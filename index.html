@@ -34,7 +34,9 @@ header nav,.choices{display:flex;gap:5px;flex-wrap:wrap}.choices button[aria-pre
 .bus-icon::before{content:'';position:absolute;inset:2px 2px auto;height:5px;border-radius:3px 2px 1px 1px;background:repeating-linear-gradient(90deg,#293741 0 4px,transparent 4px 6px);box-shadow:0 10px 0 -1px #293741}
 .bus-icon::after{content:'';position:absolute;bottom:-4px;left:3px;width:6px;height:6px;border-radius:50%;background:#222;box-shadow:19px 0 #222}
 .destination-display{display:flex;width:fit-content;max-width:100%;padding:9px 12px;background:#171614;border:3px solid #33302b;border-radius:10px;box-shadow:inset 0 0 0 1px #080807}
-.destination-display canvas{display:block;max-width:100%;height:auto}
+.destination-display{color:#ffbd49}
+.destination-display canvas[hidden]{display:none}
+.destination-display canvas{display:block;max-width:100%;height:auto;flex:none}
 .visually-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
 </style>
 <main>
@@ -78,12 +80,15 @@ let ledFrame=0;
 const reducedMotion=matchMedia('(prefers-reduced-motion: reduce)');
 function drawDestinationDisplay(){
  cancelAnimationFrame(ledFrame);
- const terminal=destinations[direction];
+ const terminal=destinations[direction] ?? (line==='65'
+   ? (direction==='outbound'?'Ealing Broadway Station':'Brook Street')
+   : null);
  const label=terminal?line+' '+terminal.toUpperCase():line;
  by('ledHeading').textContent=label;
  const display=by('ledDisplay');
  const source=document.createElement('canvas');
  const mask=source.getContext('2d',{willReadFrequently:true});
+ if(!mask){display.hidden=true;by('ledHeading').classList.remove('visually-hidden');return}
  const font='bold 17px system-ui, sans-serif';
  mask.font=font;
  source.width=Math.ceil(mask.measureText(label).width)+4;
@@ -92,7 +97,7 @@ function drawDestinationDisplay(){
  mask.textBaseline='middle';
  mask.fillText(label,2,12);
  const pixels=mask.getImageData(0,0,source.width,source.height).data;
- const pitch=3;
+ const pitch=2;
  const strip=document.createElement('canvas');
  strip.width=source.width*pitch;
  strip.height=source.height*pitch;
@@ -102,7 +107,7 @@ function drawDestinationDisplay(){
      if(pixels[(y*source.width+x)*4+3]<=100)continue;
      dots.fillStyle='#ffbd49';
      dots.beginPath();
-     dots.arc(x*pitch+1.5,y*pitch+1.5,1.05,0,Math.PI*2);
+     dots.arc(x*pitch+pitch/2,y*pitch+pitch/2,pitch*.36,0,Math.PI*2);
      dots.fill();
    }
  }
@@ -115,7 +120,7 @@ function drawDestinationDisplay(){
  const tile=background.getContext('2d');
  tile.fillStyle='#30261a';
  tile.beginPath();
- tile.arc(1.5,1.5,1.05,0,Math.PI*2);
+ tile.arc(pitch/2,pitch/2,pitch*.36,0,Math.PI*2);
  tile.fill();
  const pattern=ctx.createPattern(background,'repeat');
  function paint(offset){
@@ -395,7 +400,7 @@ const official=document.querySelector('[data-copy="official"]');
 official.href='https://tfl.gov.uk/bus/route/'+line+'/';
 copy.official=['TfL '+line+' 官方路線','Official TfL route '+line];
 window.addEventListener('resize',drawDestinationDisplay);
-reducedMotion.addEventListener('change',drawDestinationDisplay);
+reducedMotion.addEventListener?.('change',drawDestinationDisplay);
 applyLanguage();
 if(!params.has('bus')&&params.get('route')==='sl7')location.replace('map.html?route=sl7');else start();
 </script>
