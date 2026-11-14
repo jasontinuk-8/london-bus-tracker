@@ -63,7 +63,7 @@ header nav,.choices{display:flex;gap:5px;flex-wrap:wrap}.choices button[aria-pre
 .route-map-popup{white-space:pre-line;max-height:280px;overflow:auto;min-width:210px}
 #routeMapDialog::backdrop{background:#0007}
 [hidden]{display:none!important}
-#modePicker{margin:12px 0}#railPicker,#branchPicker{margin-right:8px}#locationNote{margin-left:6px}
+#modePicker{margin:12px 0}#railPicker,#railStopPicker,#branchPicker{margin-right:8px}#locationNote{margin-left:6px}
 .rail select{max-width:100%}
 .rail .bus-icon{background:#fff;border:2px solid #173b68;border-radius:7px 7px 4px 4px;width:26px;height:24px}
 .rail .bus-icon::before{background:#173b68;height:7px;box-shadow:none}
@@ -104,7 +104,8 @@ header nav,.choices{display:flex;gap:5px;flex-wrap:wrap}.choices button[aria-pre
 <button type="button" data-mode="elizabeth-line">Elizabeth line</button>
 </div>
 <label id="railPicker" hidden><span data-copy="railLine"></span> <select id="railLine"></select></label>
-<label id="branchPicker" hidden><span data-copy="branch"></span> <select id="branch"></select></label>
+<label id="railStopPicker" hidden><span data-copy="railStop"></span> <select id="railStop"></select></label>
+<label id="branchPicker" hidden><span data-copy="direction"></span> <select id="branch"></select></label>
 <button id="locate" type="button" data-copy="locate" disabled></button>
 <span id="locationNote" class="muted" role="status"></span>
 <form id="routeSearch" class="route-search"><label><span data-copy="searchLabel"></span><input id="routeInput" maxlength="8" placeholder="65, K3, SL7" required></label><button data-copy="search"></button><p id="searchNote" class="muted" role="status"></p></form><div class="controls"><div class="choices" id="routePicker" role="group" data-label="route"><button id="route65">65</button><button id="route371">371</button></div><div class="choices" role="group" data-label="direction"><button id="outbound" aria-pressed="true">Ealing Broadway</button><button id="inbound" aria-pressed="false">Kingston · Brook Street</button></div><label><span data-copy="boarding"></span> <select id="station"></select></label></div>
@@ -135,7 +136,7 @@ const tr=(zh,en)=>language==='en'?en:zh;
 const copy={
  brand:['倫敦巴士','London Buses'],
  departures:['下一班開車','Next departures'],
- busMode:['巴士','Bus'],railLine:['路線','Line'],branch:['分支','Branch'],locate:['搵最近車站','Find nearest stop'],
+ busMode:['巴士','Bus'],railLine:['路線','Line'],railStop:['車站','Station'],branch:['分支','Branch'],locate:['搵最近車站','Find nearest stop'],
  route:['巴士路線','Bus route'],searchLabel:['巴士號碼','Bus number'],search:['搜尋','Search'],title:['即時站序','Live stops'],direction:['行車方向','Direction'],boarding:['上車站','Boarding stop'],
  out:['往 Ealing Broadway','Towards Ealing Broadway'],in:['往 Kingston · Brook Street','Towards Kingston · Brook Street'],
  outScroll:['往 Ealing Broadway 全線站名','All stops towards Ealing Broadway'],
@@ -218,6 +219,7 @@ function applyLanguage(){
  document.title=rail?lineName+' · '+tr('即時站序','Live stops'):tr(line+' 巴士 · 即時站序',line+' bus · Live stops');
  showLocationNote();
  for(const el of document.querySelectorAll('[data-copy]'))el.textContent=tr(...copy[el.dataset.copy]);
+ if(rail)refreshRailJourneyLabels();
  for(const el of document.querySelectorAll('[data-label]'))el.setAttribute('aria-label',tr(...copy[el.dataset.label]));
  for(const lang of ['zh','en'])by(lang).setAttribute('aria-pressed',String(lang===language));
  if(!routes){
@@ -277,6 +279,9 @@ for(const button of document.querySelectorAll('[data-mode]')){
 by('routeSearch').hidden=rail;
 by('routePicker').hidden=rail;
 by('railPicker').hidden=!rail;
+by('railStopPicker').hidden=true;
+by('outbound').parentElement.hidden=rail;
+station.parentElement.hidden=rail;
 for(const [id,name] of railOptions)by('railLine').add(new Option(name,id));
 by('railLine').value=rail?line:'';
 by('railLine').onchange=()=>selectMode(mode,by('railLine').value);
@@ -291,30 +296,71 @@ if(rail){
 const branches={};
 const branchIndex={outbound:0,inbound:0};
 let railStatus=null;
-function fillBranchPicker(){
- const options=branches[direction]??[];
- by('branchPicker').hidden=options.length<2;
- by('branch').replaceChildren(...options.map((seq,i)=>new Option(
-   seq.stopPoint[0].name+' → '+seq.stopPoint.at(-1).name+' · '+seq.stopPoint.length,i)));
- by('branch').value=branchIndex[direction];
+const railStop=by('railStop');
+let railJourneys=[];
+function refreshRailJourneyLabels(){
+ const options=by('branch').options;
+ railJourneys.forEach((journey,i)=>{
+   if(options[i])options[i].textContent=tr('往 ','Towards ')+journey.destination.name;
+ });
 }
-by('branch').onchange=()=>{
- branchIndex[direction]=Number(by('branch').value);
+function applyRailJourney(index){
+ const journey=railJourneys[index];
+ if(!journey)return;
+ direction=journey.dir;
+ branchIndex[direction]=journey.branchIndex;
  applyBranch(direction);
- const opposite=directions.find(dir=>dir!==direction);
- const route=routes[direction];
- const reverseIndex=branches[opposite]?.findIndex(({stopPoint})=>
-   stopPoint[0].name===route.at(-1)[1] && stopPoint.at(-1).name===route[0][1]);
- if(reverseIndex>=0){
-   branchIndex[opposite]=reverseIndex;
-   applyBranch(opposite);
- }
  routeGeometry=null;
  createTracks();
- setDirection();
+ setDirection(false);
+ const stopIndex=routes[direction].findIndex(([id])=>id===railStop.value);
+ if(stopIndex>=0)choose(stopIndex,false);
+ by('branch').value=String(index);
  applyLanguage();
  refreshTraffic();
+}
+function fillRailDirectionPicker(){
+ if(!rail)return;
+ const stopId=railStop.value;
+ const journeys=[],seen=new Set();
+ for(const dir of directions)(branches[dir]??[]).forEach((sequence,index)=>{
+   const stopIndex=sequence.stopPoint.findIndex(stop=>stop.id===stopId);
+   if(stopIndex<0||stopIndex===sequence.stopPoint.length-1)return;
+   const destination=sequence.stopPoint.at(-1);
+   if(seen.has(destination.id))return;
+   seen.add(destination.id);
+   journeys.push({dir,branchIndex:index,stopIndex,destination});
+ });
+ journeys.sort((a,b)=>a.destination.name.localeCompare(b.destination.name));
+ railJourneys=journeys;
+ by('branch').replaceChildren(...journeys.map((journey,i)=>new Option('',i)));
+ refreshRailJourneyLabels();
+ by('branchPicker').hidden=!journeys.length;
+ if(!journeys.length)return;
+ let selected=journeys.findIndex(journey=>journey.dir===direction&&journey.branchIndex===branchIndex[direction]);
+ if(selected<0)selected=0;
+ by('branch').value=String(selected);
+ applyRailJourney(selected);
+}
+function setupRailJourneyPicker(){
+ if(!rail)return;
+ const stations=new Map();
+ for(const dir of directions)for(const sequence of branches[dir]??[])
+   for(const stop of sequence.stopPoint)stations.set(stop.id,stop.name);
+ const options=[...stations].sort((a,b)=>a[1].localeCompare(b[1]));
+ railStop.replaceChildren(...options.map(([id,name])=>new Option(name,id)));
+ let saved;
+ try{saved=localStorage.getItem('rail-'+line+'-stop')}catch{}
+ const fallback=routes[direction]?.[0]?.[0]??options[0]?.[0];
+ railStop.value=stations.has(saved)?saved:fallback;
+ by('railStopPicker').hidden=false;
+ fillRailDirectionPicker();
+}
+railStop.onchange=()=>{
+ try{localStorage.setItem('rail-'+line+'-stop',railStop.value)}catch{}
+ fillRailDirectionPicker();
 };
+by('branch').onchange=()=>applyRailJourney(Number(by('branch').value));
 function railRouteSequences(data, segments){
  const stations=new Map(segments.flatMap(seq=>seq.stopPoint.map(stop=>[stop.id,stop])));
  const seen=new Set();
@@ -597,7 +643,6 @@ function createTracks(){
  }
 }
 function setDirection(scroll=true){
- fillBranchPicker();
  trafficSelection=null;matchedReports=new Map();
  drawDestinationDisplay();
  for(const dir of directions){
@@ -1031,7 +1076,7 @@ async function start(){
      copy[key+'Scroll']=['往 '+destinations[dir]+' 全線站名','All stops towards '+destinations[dir]];
    }
    createTracks();applyLanguage();
-   setDirection();refreshTraffic();setInterval(refreshTraffic,300000);refresh();setInterval(refresh,30000);setInterval(render,5000);
+   setDirection();if(rail)setupRailJourneyPicker();refreshTraffic();setInterval(refreshTraffic,300000);refresh();setInterval(refresh,30000);setInterval(render,5000);
  }catch{stopsFailed=true;routeError ||= 'unavailable';applyLanguage()}
 }
 by('routeInput').value=line;
