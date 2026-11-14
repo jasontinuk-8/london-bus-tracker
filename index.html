@@ -61,10 +61,26 @@ header nav,.choices{display:flex;gap:5px;flex-wrap:wrap}.choices button[aria-pre
 .route-live-warning{background:#fff6d4;font-size:16px}
 .route-map-popup{white-space:pre-line}
 #routeMapDialog::backdrop{background:#0007}
+[hidden]{display:none!important}
+#modePicker{margin:12px 0}#railPicker,#branchPicker{margin-right:8px}#locationNote{margin-left:6px}
+.rail select{max-width:100%}
+.rail .bus-icon{background:#fff;border:2px solid #173b68;border-radius:7px 7px 4px 4px;width:26px;height:24px}
+.rail .bus-icon::before{background:#173b68;height:7px;box-shadow:none}
+.rail .bus-icon::after{bottom:2px;left:3px;width:4px;height:4px;background:#ea333b;box-shadow:12px 0 #ea333b}
 </style>
 <main>
 <header><strong data-copy="brand"></strong><nav><button id="zh" aria-pressed="true" lang="zh-Hant">中</button><button id="en" aria-pressed="false" lang="en">ENG</button></nav></header>
 <h1 class="destination-display"><canvas id="ledDisplay" aria-hidden="true"></canvas><span id="ledHeading" class="visually-hidden"></span></h1>
+<div class="choices" id="modePicker" role="group" aria-label="Transport">
+<button type="button" data-mode="bus" data-copy="busMode"></button>
+<button type="button" data-mode="tube">Tube</button>
+<button type="button" data-mode="overground">Overground</button>
+<button type="button" data-mode="elizabeth-line">Elizabeth line</button>
+</div>
+<label id="railPicker" hidden><span data-copy="railLine"></span> <select id="railLine"></select></label>
+<label id="branchPicker" hidden><span data-copy="branch"></span> <select id="branch"></select></label>
+<button id="locate" type="button" data-copy="locate" disabled></button>
+<span id="locationNote" class="muted" role="status"></span>
 <form id="routeSearch" class="route-search"><label><span data-copy="searchLabel"></span><input id="routeInput" maxlength="8" placeholder="65, K3, SL7" required></label><button data-copy="search"></button><p id="searchNote" class="muted" role="status"></p></form><div class="controls"><div class="choices" id="routePicker" role="group" data-label="route"><button id="route65">65</button><button id="route371">371</button></div><div class="choices" role="group" data-label="direction"><button id="outbound" aria-pressed="true">Ealing Broadway</button><button id="inbound" aria-pressed="false">Kingston · Brook Street</button></div><label><span data-copy="boarding"></span> <select id="station"></select></label></div>
 <div class="layout">
 <section class="card diagram">
@@ -92,6 +108,7 @@ try{if(localStorage.getItem('bus65-language')==='en')language='en'}catch{}
 const tr=(zh,en)=>language==='en'?en:zh;
 const copy={
  brand:['倫敦巴士','London Buses'],
+ busMode:['巴士','Bus'],railLine:['路線','Line'],branch:['分支','Branch'],locate:['搵最近車站','Find nearest stop'],
  route:['巴士路線','Bus route'],searchLabel:['巴士號碼','Bus number'],search:['搜尋','Search'],title:['即時站序','Live stops'],direction:['行車方向','Direction'],boarding:['上車站','Boarding stop'],
  out:['往 Ealing Broadway','Towards Ealing Broadway'],in:['往 Kingston · Brook Street','Towards Kingston · Brook Street'],
  outScroll:['往 Ealing Broadway 全線站名','All stops towards Ealing Broadway'],
@@ -108,7 +125,8 @@ function drawDestinationDisplay(){
  const terminal=destinations[direction] ?? (line==='65'
    ? (direction==='outbound'?'Ealing Broadway Station':'Brook Street')
    : null);
- const label=terminal?line+' '+terminal.toUpperCase():line;
+ const heading=lineName.toUpperCase();
+ const label=terminal?heading+' '+terminal.toUpperCase():heading;
  by('ledHeading').textContent=label;
  const display=by('ledDisplay');
  const glyphs={
@@ -170,7 +188,8 @@ function drawDestinationDisplay(){
 function applyLanguage(){
  drawDestinationDisplay();
  document.documentElement.lang=tr('zh-Hant','en');
- document.title=tr(line+' 巴士 · 即時站序',line+' bus · Live stops');
+ document.title=rail?lineName+' · '+tr('即時站序','Live stops'):tr(line+' 巴士 · 即時站序',line+' bus · Live stops');
+ showLocationNote();
  for(const el of document.querySelectorAll('[data-copy]'))el.textContent=tr(...copy[el.dataset.copy]);
  for(const el of document.querySelectorAll('[data-label]'))el.setAttribute('aria-label',tr(...copy[el.dataset.label]));
  for(const lang of ['zh','en'])by(lang).setAttribute('aria-pressed',String(lang===language));
@@ -195,13 +214,122 @@ const station=by('station');
 const params=new URLSearchParams(location.search);
 const requested=(params.get('bus')??params.get('route')??'65').trim().toUpperCase();
 const validLine=/^[A-Z0-9]{1,8}$/;
-const line=validLine.test(requested)&&requested!=='NORTH'&&requested!=='SOUTH'?requested:'65';
+const railLines={
+ tube:[['bakerloo','Bakerloo'],['central','Central'],['circle','Circle'],['district','District'],['hammersmith-city','Hammersmith & City'],['jubilee','Jubilee'],['metropolitan','Metropolitan'],['northern','Northern'],['piccadilly','Piccadilly'],['victoria','Victoria'],['waterloo-city','Waterloo & City']],
+ overground:[['lioness','Lioness'],['mildmay','Mildmay'],['windrush','Windrush'],['weaver','Weaver'],['suffragette','Suffragette'],['liberty','Liberty']],
+ 'elizabeth-line':[['elizabeth','Elizabeth line']]
+};
+const mode=Object.hasOwn(railLines,params.get('mode'))?params.get('mode'):'bus';
+const rail=mode!=='bus';
+const railOptions=railLines[mode]??[];
+const selectedLine=railOptions.find(([id])=>id===params.get('line'))??railOptions[0];
+const line=rail?selectedLine[0]:validLine.test(requested)&&requested!=='NORTH'&&requested!=='SOUTH'?requested:'65';
+const lineName=rail?selectedLine[1]:line;
+function selectMode(next,id){
+ location.search=next==='bus'?'?route=65':'?'+new URLSearchParams({mode:next,...(id?{line:id}:{})});
+}
+for(const button of document.querySelectorAll('[data-mode]')){
+ button.setAttribute('aria-pressed',String(button.dataset.mode===mode));
+ button.onclick=()=>{if(button.dataset.mode!==mode)selectMode(button.dataset.mode)};
+}
+by('routeSearch').hidden=rail;
+by('routePicker').hidden=rail;
+by('railPicker').hidden=!rail;
+for(const [id,name] of railOptions)by('railLine').add(new Option(name,id));
+by('railLine').value=rail?line:'';
+by('railLine').onchange=()=>selectMode(mode,by('railLine').value);
+if(rail){
+ Object.assign(copy,{
+ brand:['倫敦交通','London Transport'],legend:['列車圖示係推算位置。閃動黃光係下一站。紅圈係上車站。','Train icon: estimated position. Flashing yellow: next stop. Red ring: boarding stop.'],
+ positions:['列車位置','Train positions'],fleet:['路線上嘅列車','Trains on this line'],
+ trafficTitle:['服務狀態','Service status'],source:['到站時間由 TfL 提供。列車位置按預測推算。','TfL arrival predictions are used to estimate train positions.']
+ });
+ document.documentElement.classList.add('rail');
+}
+const branches={};
+const branchIndex={outbound:0,inbound:0};
+let railStatus=null;
+function fillBranchPicker(){
+ const options=branches[direction]??[];
+ by('branchPicker').hidden=options.length<2;
+ by('branch').replaceChildren(...options.map((seq,i)=>new Option(
+   seq.stopPoint[0].name+' → '+seq.stopPoint.at(-1).name+' · '+seq.stopPoint.length,i)));
+ by('branch').value=branchIndex[direction];
+}
+by('branch').onchange=()=>{
+ branchIndex[direction]=Number(by('branch').value);
+ applyBranch(direction);
+ routeGeometry=null;
+ createTracks();
+ setDirection();
+ applyLanguage();
+ refreshTraffic();
+};
+function applyBranch(dir){
+ const stops=branches[dir]?.[branchIndex[dir]]?.stopPoint??[];
+ routes[dir]=stops.map(stop=>[stop.id,stop.name,rail?'':stop.stopLetter??'']);
+ stopCoordinates[dir]=new Map(stops.filter(stop=>Number.isFinite(stop.lat)&&Number.isFinite(stop.lon))
+   .map(stop=>[stop.id,[stop.lon,stop.lat]]));
+ if(!stops.length)return;
+ destinations[dir]=stops.at(-1).name;
+ const key=dir==='outbound'?'out':'in';
+ copy[key]=['往 '+destinations[dir],'Towards '+destinations[dir]];
+ copy[key+'Scroll']=['往 '+destinations[dir]+' 全線站名','All stops towards '+destinations[dir]];
+ by(dir).textContent=destinations[dir];
+}
+let locationState='';
+let userLocation=null;
+function showLocationNote(){
+ const messages={
+ locating:tr('定位中…','Finding your location…'),
+ denied:tr('定位未獲允許。','Location permission was denied.'),
+ failed:tr('暫時搵唔到你嘅位置。','Location is unavailable.'),
+ missing:tr('暫時未有車站座標。','Stop coordinates are unavailable.'),
+ nearest:tr('已選取最近車站。','Nearest stop selected.')
+ };
+ by('locationNote').textContent=messages[locationState]??'';
+}
+function drawUserLocation(){
+ if(!fullRouteMap||!userLocation)return;
+ if(userLocationMarker)userLocationMarker.setLatLng(userLocation);
+ else userLocationMarker=L.circleMarker(userLocation,{radius:8,color:'#fff',weight:2,fillColor:'#1565ff',fillOpacity:1}).addTo(fullRouteMap);
+ userLocationMarker.bindTooltip(tr('你嘅位置','Your location'));
+ userLocationMarker.bringToFront();
+}
+by('locate').onclick=()=>{
+ const button=by('locate');
+ if(!navigator.geolocation){locationState='failed';showLocationNote();return}
+ button.disabled=true;
+ locationState='locating';showLocationNote();
+ navigator.geolocation.getCurrentPosition(({coords})=>{
+   button.disabled=false;
+   userLocation=[coords.latitude,coords.longitude];
+   const positions=stopCoordinates[direction];
+   let nearest=-1,best=Infinity;
+   stops.forEach(([id],index)=>{
+     const point=positions?.get(id);
+     if(!point)return;
+     const radians=Math.PI/180;
+     const dLat=(point[1]-coords.latitude)*radians;
+     const dLon=(point[0]-coords.longitude)*radians;
+     const distance=Math.sin(dLat/2)**2+Math.cos(coords.latitude*radians)*Math.cos(point[1]*radians)*Math.sin(dLon/2)**2;
+     if(distance<best){best=distance;nearest=index}
+   });
+   locationState=nearest<0?'missing':'nearest';
+   if(nearest>=0)choose(nearest);
+   drawUserLocation();showLocationNote();
+ },error=>{
+   button.disabled=false;
+   locationState=error.code===1?'denied':'failed';
+   showLocationNote();
+ },{timeout:12000,maximumAge:30000});
+};
 let routeError='';
 let hasVariants=false;
 function searchStatus(){
  const messages={
  invalid:tr('請輸入巴士號碼，例如 K3。','Enter a bus number, such as K3.'),
- missing:tr('搵唔到呢條巴士路線。','Bus route not found.'),
+ missing:rail?tr('搵唔到呢條鐵路路線。','Rail line not found.'):tr('搵唔到呢條巴士路線。','Bus route not found.'),
  unavailable:tr('暫時未能從 TfL 讀取站序。','Could not load stops from TfL.'),
  };
  by('searchNote').textContent=messages[routeError]??(hasVariants?tr('有多個站序嘅方向會顯示最長嗰個。','Where a direction has variants, the longest stop sequence is shown.'):'');
@@ -232,13 +360,14 @@ function updateRouteLinks(){
  if(!stops.length)return;
  const endpoints=[stops[0],stops.at(-1)].map(([id,name])=>{
    const point=stopCoordinates[direction]?.get(id);
-   return point?point[1]+','+point[0]:name+' bus stop London';
+   return point?point[1]+','+point[0]:name+(rail?' station London':' bus stop London');
  });
  const google=by('googleRoute');
  google.href='https://www.google.com/maps/dir/?'+new URLSearchParams({api:'1',origin:endpoints[0],destination:endpoints[1],travelmode:'transit'});
  google.hidden=false;
  by('openRouteMap').disabled=false;
 }
+let userLocationMarker;
 let fullRouteMap, routeOverlay, displayedGeometry, basemapFailed=false;
 const liveMapMarkers=new Map();
 let mapFleet=[];
@@ -285,7 +414,7 @@ function drawLiveMap(){
    for(const [index,buses] of byStop){
      const next=stops[index][1];
      const previous=stops[Math.max(0,index-1)][1];
-     const busLabel=tr('巴士推算位置','Estimated bus position');
+     const busLabel=rail?tr('列車推算位置','Estimated train position'):tr('巴士推算位置','Estimated bus position');
      const nextLabel=tr('預計下一站','Expected next stop');
      const times=buses.map(bus=>(registration(bus)??bus.vehicleId)+' · '+eta(bus)).join('\n');
      const segment=index?previous+' → '+next:next;
@@ -307,7 +436,7 @@ function drawLiveMap(){
 function drawFullRoute(){
  const drawing=by('routeMapDrawing');
  const geometry=routeGeometry?.[direction];
- const title=line+' · '+towards(direction);
+ const title=lineName+' · '+towards(direction);
  by('routeMapTitle').textContent=title;
  drawing.setAttribute('aria-label',title);
  const note=by('routeMapNote');
@@ -332,9 +461,11 @@ function drawFullRoute(){
    routeOverlay=L.layerGroup().addTo(fullRouteMap);
  }
  note.textContent=basemapFailed?tr('部分街道地圖暫時載入唔到。','Some street map tiles are unavailable.'):geometry
-   ?tr('紅巴士：推算位置。黃燈：下一站。⚠️：交通通報。撳圖示睇詳情。','Red bus: estimated position. Yellow light: next stop. ⚠️: road report. Select an icon for details.')
+   ?rail?tr('列車圖示係推算位置，黃燈係下一站。','Train icons show estimated positions. Yellow lights mark next stops.'):tr('紅巴士：推算位置。黃燈：下一站。⚠️：交通通報。撳圖示睇詳情。','Red bus: estimated position. Yellow light: next stop. ⚠️: road report. Select an icon for details.')
    :tr('等候 TfL 全線走線。','Waiting for the TfL route outline.');
+ if(geometry?.approximate)note.textContent+=' '+tr('走線以站與站之間直線表示。','Straight lines connect stations where route geometry is unavailable.');
  fullRouteMap.invalidateSize();
+ drawUserLocation();
  if(geometry===displayedGeometry){drawLiveMap();return}
  displayedGeometry=geometry;
  routeOverlay.clearLayers();
@@ -361,7 +492,7 @@ function drawFullRoute(){
 by('openRouteMap').onclick=()=>{by('routeMapDialog').showModal();drawFullRoute()};
 function updateStopMap({map,name,id},dir){
  const point=stopCoordinates[dir]?.get(id);
- const query=point?point[1]+','+point[0]:name+' bus stop London';
+ const query=point?point[1]+','+point[0]:name+(rail?' station London':' bus stop London');
  map.href='https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(query);
  const label=point?tr('喺 Google Maps 睇站牌位置','View stop location in Google Maps'):tr('喺 Google Maps 搜尋站名','Search for stop in Google Maps');
  map.title=label;
@@ -396,6 +527,7 @@ function createTracks(){
  }
 }
 function setDirection(scroll=true){
+ fillBranchPicker();
  trafficSelection=null;matchedReports=new Map();
  drawDestinationDisplay();
  for(const dir of directions){
@@ -425,6 +557,7 @@ function item(list,label,action){
  list.append(li);
 }
 function registration(p){
+ if(rail)return null;
  const id=p.vehicleId.trim().toUpperCase().replace(/ /g,'');
  return /^[A-Z]{2}[0-9]{2}[A-Z]{3}$/.test(id)?id.slice(0,4)+' '+id.slice(4):null;
 }
@@ -434,7 +567,7 @@ function renderFleet(vehicles,lookup){
  const ids=new Set(vehicles.map(p=>p.vehicleId));
  for(const child of [...list.children])if(!ids.has(child.dataset.id))child.remove();
  if(!vehicles.length){
-   list.textContent=tr('暫無巴士預測。','No bus predictions.');
+   list.textContent=(rail?tr('暫無列車預測。','No train predictions.'):tr('暫無巴士預測。','No bus predictions.'));
    return;
  }
  if(!list.children.length)list.textContent='';
@@ -451,6 +584,12 @@ function renderFleet(vehicles,lookup){
    if(!button.isConnected)list.append(button);
  }
 }
+function onSelectedBranch(p){
+ if(!rail||!p.destinationNaptanId||!branches[p.direction]?.length)return true;
+ const options=branches[p.direction];
+ const destinationIn=seq=>seq.stopPoint.some(stop=>stop.id===p.destinationNaptanId);
+ return !options.some(destinationIn)||destinationIn(options[branchIndex[p.direction]]);
+}
 function render(){
  if(!stops.length)return;
  by('stopSummary').textContent=tr('完整站序 · '+stops.length+' 個站','All stops · '+stops.length);
@@ -459,7 +598,7 @@ function render(){
  const [stopId,name,letter]=stops[selected];
  const lookup=new Map(stops.map(([id],i)=>[id,i]));
  const fresh=usable?predictions.filter(p=>Date.parse(p.expectedArrival)>Date.now()-15000).sort((a,b)=>Date.parse(a.expectedArrival)-Date.parse(b.expectedArrival)):[];
- const records=fresh.filter(p=>p.direction===direction&&lookup.has(p.naptanId));
+ const records=fresh.filter(p=>p.direction===direction&&lookup.has(p.naptanId)&&onSelectedBranch(p));
  const arrivals=records.filter(p=>p.naptanId===stopId);
  by('selectedStop').textContent=name+(letter?' · '+letter:'');
  by('centerEta').textContent=arrivals.length?eta(arrivals[0]):usable?tr("暫無預測","No predictions"):failed||stale?tr("未有資料","No data"):tr("讀取中","Loading");
@@ -468,7 +607,7 @@ function render(){
  const list=by('arrivals');list.replaceChildren();
  if(!arrivals.length)item(list,usable?tr("TfL 暫時未有呢個站嘅預測。","No TfL predictions for this stop."):tr("等候即時到站資料。","Waiting for live arrivals."));
  else arrivals.slice(0,3).forEach((p,index)=>{
-   item(list,eta(p));
+   item(list,eta(p)+(rail?[p.destinationName,p.platformName].filter(Boolean).map(value=>' · '+value).join(''):''));
    const previous=p.vehicleId?previousArrivals.get(arrivalKey(p)):undefined;
    const minutes=Math.round((Date.parse(p.expectedArrival)-previous)/60000);
    if(!(minutes>0))return;
@@ -492,7 +631,7 @@ function render(){
  const routeIds=Object.fromEntries(directions.map(dir=>[dir,new Set(routes[dir].map(row=>row[0]))]));
  const seen=new Set();
  for(const p of fresh){
-   if(!p.vehicleId||seen.has(p.vehicleId)||!routeIds[p.direction]?.has(p.naptanId))continue;
+   if(!p.vehicleId||seen.has(p.vehicleId)||!routeIds[p.direction]?.has(p.naptanId)||!onSelectedBranch(p))continue;
    seen.add(p.vehicleId);
    const line=groups[p.direction];
    if(!line.has(p.naptanId))line.set(p.naptanId,[]);
@@ -533,7 +672,7 @@ function render(){
    });
  }else{
    const count=fleet.length;
-   by('vehicleDetail').textContent=count?tr(count+' 架車有預測，撳巴士圖示或黃燈睇詳情。',count+' bus'+(count===1?'':'es')+' with predictions. Select a bus icon or yellow light.'):tr("暫無巴士位置。","No bus positions available.");
+   by('vehicleDetail').textContent=rail?(count?tr(count+' 架列車有預測。',count+' trains with predictions.'):tr('暫無列車位置。','No train positions available.')):count?tr(count+' 架車有預測，撳巴士圖示或黃燈睇詳情。',count+' bus'+(count===1?'':'es')+' with predictions. Select a bus icon or yellow light.'):tr("暫無巴士位置。","No bus positions available.");
  }
 }
 
@@ -597,17 +736,27 @@ function matchedGeometry(data,stops,positions){
  return null;
 }
 async function refreshTraffic(){
+ const selectedRoutes=directions.map(dir=>routes[dir]);
  const geometries=Promise.allSettled(directions.map(async dir=>{
    if(!routes[dir].length)return null;
    if(routeGeometry?.[dir])return routeGeometry[dir];
    const data=await trafficJson('Line/'+encodeURIComponent(line)+'/Route/Sequence/'+dir);
+   if(routes[dir]!==selectedRoutes[directions.indexOf(dir)])return null;
    stopCoordinates[dir]=new Map(data.stopPointSequences.flatMap(seq=>seq.stopPoint)
      .filter(stop=>Number.isFinite(stop.lat)&&Number.isFinite(stop.lon))
      .map(stop=>[stop.id,[stop.lon,stop.lat]]));
    for(const entry of nodes[dir])updateStopMap(entry,dir);
-   return matchedGeometry(data,routes[dir],stopCoordinates[dir]);
+   const selectedStops=selectedRoutes[directions.indexOf(dir)];
+   const geometry=matchedGeometry(data,selectedStops,stopCoordinates[dir]);
+   if(geometry||!rail)return geometry;
+   const points=selectedStops.map(([id])=>stopCoordinates[dir].get(id));
+   return points.length>1&&points.every(Boolean)
+     ?{points,offsets:points.map((_,i)=>i),approximate:true}
+     :null;
  })).then(results=>Object.fromEntries(directions.map((dir,i)=>[dir,results[i].value??null])));
- const [geometry, reports]=await Promise.all([geometries,trafficJson('Road/all/Disruption?stripContent=true').catch(()=>null)]);
+ const [geometry, reports]=await Promise.all([geometries,trafficJson(rail?'Line/'+line+'/Status':'Road/all/Disruption?stripContent=true').catch(()=>null)]);
+ if(directions.some((dir,i)=>routes[dir]!==selectedRoutes[i]))return;
+ if(rail)railStatus=reports;
  if(directions.some(dir=>geometry[dir]))routeGeometry=geometry;
  trafficReports=Array.isArray(reports)?reports:null;
  renderTraffic();render();
@@ -616,7 +765,7 @@ function renderTraffic(){
  updateRouteLinks();
  if(!routes||!nodes[direction]||!stops.length)return;
  const geometry=routeGeometry?.[direction];
- const available=geometry&&trafficReports;
+ const available=!rail&&geometry&&trafficReports;
  const matches=new Map();
  if(available){
    const {points,offsets}=geometry;
@@ -644,6 +793,11 @@ function renderTraffic(){
    traffic.setAttribute('aria-pressed',String(trafficSelection===index));
  });
  const detail=by('trafficDetail');
+ if(rail){
+   const statuses=railStatus?.[0]?.lineStatuses??[];
+   detail.textContent=statuses.map(s=>s.reason||s.statusSeverityDescription).filter(Boolean).join('\n')||tr('暫未有服務狀態。','Service status unavailable.');
+   return;
+ }
  const unavailable=tr('暫未有可用嘅路段資料。','Segment data unavailable.');
  if(trafficSelection===null){
    detail.textContent=available?(matches.size?tr('撳 ⚠️ 睇通報。','Select ⚠️ to read a report.'):tr('暫無配對通報。','No matched reports.')):unavailable;
@@ -666,9 +820,10 @@ async function start(){
        if(response.status===404)return [];
        if(!response.ok)throw Error(response.status);
        const data=await response.json();
-       if(data.mode&&data.mode!=='bus')return [];
+       if(data.mode&&data.mode!==mode)return [];
        const sequences=(data.stopPointSequences??[]).filter(seq=>seq.stopPoint?.length);
-       hasVariants ||= sequences.length>1;
+       if(rail)branches[dir]=sequences;
+       hasVariants ||= !rail&&sequences.length>1;
        const longest=sequences.sort((a,b)=>b.stopPoint.length-a.stopPoint.length)[0];
        stopCoordinates[dir]=new Map((longest?.stopPoint??[])
          .filter(stop=>Number.isFinite(stop.lat)&&Number.isFinite(stop.lon))
@@ -678,6 +833,8 @@ async function start(){
      if(!results.some(stops=>stops.length)){routeError='missing';throw Error('Route not found')}
      routes=Object.fromEntries(directions.map((dir,i)=>[dir,results[i]]));
    }
+   if(rail)directions.forEach(applyBranch);
+   by('locate').disabled=false;
    if(!routes[direction].length)direction=directions.find(dir=>routes[dir].length);
    for(const [dir,key] of [['outbound','out'],['inbound','in']]){
      const last=routes[dir].at(-1);
@@ -699,8 +856,8 @@ for(const route of ['65','371']){
  button.onclick=()=>{if(route!==line)location.search='?route='+route};
 }
 const official=document.querySelector('[data-copy="official"]');
-official.href='https://tfl.gov.uk/bus/route/'+line+'/';
-copy.official=['TfL '+line+' 官方路線','Official TfL route '+line];
+official.href=rail?'https://tfl.gov.uk/'+(mode==='tube'?'tube':mode==='overground'?'overground':'elizabeth-line')+'/':'https://tfl.gov.uk/bus/route/'+line+'/';
+copy.official=['TfL '+lineName+' 官方路線','Official TfL route '+lineName];
 window.addEventListener('resize',drawDestinationDisplay);
 reducedMotion.addEventListener?.('change',drawDestinationDisplay);
 applyLanguage();
