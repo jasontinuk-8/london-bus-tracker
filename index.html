@@ -97,7 +97,7 @@ function drawDestinationDisplay(){
  mask.textBaseline='middle';
  mask.fillText(label,2,12);
  const pixels=mask.getImageData(0,0,source.width,source.height).data;
- const pitch=2;
+ const pitch=3;
  const strip=document.createElement('canvas');
  strip.width=source.width*pitch;
  strip.height=source.height*pitch;
@@ -107,7 +107,7 @@ function drawDestinationDisplay(){
      if(pixels[(y*source.width+x)*4+3]<=100)continue;
      dots.fillStyle='#ffbd49';
      dots.beginPath();
-     dots.arc(x*pitch+pitch/2,y*pitch+pitch/2,pitch*.36,0,Math.PI*2);
+     dots.arc(x*pitch+pitch/2,y*pitch+pitch/2,pitch*.26,0,Math.PI*2);
      dots.fill();
    }
  }
@@ -120,7 +120,7 @@ function drawDestinationDisplay(){
  const tile=background.getContext('2d');
  tile.fillStyle='#30261a';
  tile.beginPath();
- tile.arc(pitch/2,pitch/2,pitch*.36,0,Math.PI*2);
+ tile.arc(pitch/2,pitch/2,pitch*.26,0,Math.PI*2);
  tile.fill();
  const pattern=ctx.createPattern(background,'repeat');
  function paint(offset){
