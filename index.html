@@ -737,7 +737,7 @@ const departureTimetables=new Map();
 const londonClock=new Intl.DateTimeFormat('en-GB',{
  timeZone:'Europe/London',weekday:'long',hour:'2-digit',minute:'2-digit',hourCycle:'h23'
 });
-function scheduledDepartures(data,nextStop,now){
+function scheduledDepartures(data,nextStop,destinationStop,now){
  const parts=Object.fromEntries(londonClock.formatToParts(now).map(({type,value})=>[type,value]));
  const days=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
  const today=days.indexOf(parts.weekday);
@@ -757,7 +757,7 @@ function scheduledDepartures(data,nextStop,now){
        if(!matches)continue;
        for(const journey of [...(schedule.knownJourneys??[]),schedule.firstJourney,schedule.lastJourney].filter(Boolean)){
          const path=intervals.get(String(journey.intervalId));
-         if(!path?.some(stop=>stop.stopId===nextStop))continue;
+         if(!path?.some(stop=>stop.stopId===nextStop)||path.at(-1)?.stopId!==destinationStop)continue;
          const minutes=Number(journey.hour)*60+Number(journey.minute)+1440*offset;
          if(!Number.isFinite(minutes)||minutes<minuteNow)continue;
          const destination=names.get(path.at(-1).stopId)??'';
@@ -770,11 +770,11 @@ function scheduledDepartures(data,nextStop,now){
 }
 function renderDepartures(){
  const panel=by('departures');
- const origin=stops[0]?.[0],nextStop=stops[1]?.[0];
+ const origin=stops[0]?.[0],nextStop=stops[1]?.[0],destinationStop=stops.at(-1)?.[0];
  panel.hidden=!rail||selected!==0||!nextStop;
  if(panel.hidden)return;
  const list=by('departureList');
- const key=direction+'|'+origin;
+ const key=direction+'|'+origin+'|'+destinationStop;
  if(!departureTimetables.has(key)){
    departureTimetables.set(key,{loading:true});
    trafficJson('Line/'+line+'/Timetable/'+encodeURIComponent(origin)+'?direction='+direction)
@@ -783,7 +783,7 @@ function renderDepartures(){
      .finally(renderDepartures);
  }
  const {loading,data,failed}=departureTimetables.get(key);
- const rows=data?scheduledDepartures(data,nextStop,new Date()):[];
+ const rows=data?scheduledDepartures(data,nextStop,destinationStop,new Date()):[];
  const labels=rows.map(({minutes,destination})=>{
    const time=[Math.floor(minutes/60)%24,minutes%60].map(value=>String(value).padStart(2,'0')).join(':');
    return tr('按時間表 ','Scheduled ')+time+(minutes>=1440?tr('（聽日）',' (tomorrow)'):'')+(destination?' · '+destination:'');
