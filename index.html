@@ -43,6 +43,9 @@ header nav,.choices{display:flex;gap:5px;flex-wrap:wrap}.choices button[aria-pre
 .traffic-segment[aria-pressed=true]{outline:2px solid #333}
 .arrival-delay{display:block;color:#a13b10}
 #trafficDetail{white-space:pre-line}
+.stop-cell{grid-template-columns:44px minmax(0,1fr) 32px}
+.stop-map{display:grid;place-items:center;width:30px;min-height:34px;text-decoration:none;font-size:16px;align-self:center}
+.stop-map:focus-visible{outline:2px solid #1464e0;border-radius:5px}
 </style>
 <main>
 <header><strong data-copy="brand"></strong><nav><button id="zh" aria-pressed="true" lang="zh-Hant">中</button><button id="en" aria-pressed="false" lang="en">ENG</button></nav></header>
@@ -162,6 +165,7 @@ function applyLanguage(){
    by('stopSummary').textContent=tr('完整站序','All stops');
  }
  searchStatus();
+ for(const dir of directions)for(const entry of nodes[dir]??[])updateStopMap(entry,dir);
  renderTraffic();
  render();
 }
@@ -207,6 +211,15 @@ function reveal(dir,index){
  const viewport=by(dir+'Viewport'),cell=nodes[dir][index].cell;
  viewport.scrollTop=cell.offsetTop-(viewport.clientHeight-cell.offsetHeight)/2;
 }
+function updateStopMap({map,name,id},dir){
+ const point=stopCoordinates[dir]?.get(id);
+ const query=point?point[1]+','+point[0]:name+' bus stop London';
+ map.href='https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(query);
+ const label=point?tr('喺 Google Maps 睇站牌位置','View stop location in Google Maps'):tr('喺 Google Maps 搜尋站名','Search for stop in Google Maps');
+ map.title=label;
+ map.setAttribute('aria-label',label+' · '+name);
+}
+const stopCoordinates={};
 function createTracks(){
  for(const dir of directions){
    const track=by(dir+'Track');
@@ -225,7 +238,12 @@ function createTracks(){
      traffic.className='traffic-segment';
      traffic.hidden=true;traffic.textContent='⚠️';
      traffic.onclick=()=>{trafficSelection=index;renderTraffic()};
-     cell.append(traffic,node,label);track.append(cell);return {cell,node,label,traffic};
+     const map=document.createElement('a');
+     map.className='stop-map';
+     map.target='_blank';map.rel='noopener noreferrer';map.textContent='📍';
+     const entry={cell,node,label,traffic,map,name,id};
+     updateStopMap(entry,dir);
+     cell.append(traffic,node,label,map);track.append(cell);return entry;
    });
  }
 }
@@ -411,8 +429,7 @@ function project(point,path,minimum=0){
  }
  return best;
 }
-function matchedGeometry(data,stops){
- const positions=new Map(data.stopPointSequences.flatMap(seq=>seq.stopPoint).map(stop=>[stop.id,[stop.lon,stop.lat]]));
+function matchedGeometry(data,stops,positions){
  const paths=(data.lineStrings??[]).flatMap(value=>JSON.parse(value));
  for(const path of paths){
    if(path.length<2)continue;
@@ -434,7 +451,11 @@ async function refreshTraffic(){
    if(!routes[dir].length)return null;
    if(routeGeometry?.[dir])return routeGeometry[dir];
    const data=await trafficJson('Line/'+encodeURIComponent(line)+'/Route/Sequence/'+dir);
-   return matchedGeometry(data,routes[dir]);
+   stopCoordinates[dir]=new Map(data.stopPointSequences.flatMap(seq=>seq.stopPoint)
+     .filter(stop=>Number.isFinite(stop.lat)&&Number.isFinite(stop.lon))
+     .map(stop=>[stop.id,[stop.lon,stop.lat]]));
+   for(const entry of nodes[dir])updateStopMap(entry,dir);
+   return matchedGeometry(data,routes[dir],stopCoordinates[dir]);
  })).then(results=>Object.fromEntries(directions.map((dir,i)=>[dir,results[i].value??null])));
  const [geometry, reports]=await Promise.all([geometries,trafficJson('Road/all/Disruption?stripContent=true').catch(()=>null)]);
  if(directions.some(dir=>geometry[dir]))routeGeometry=geometry;
@@ -497,6 +518,9 @@ async function start(){
        const sequences=(data.stopPointSequences??[]).filter(seq=>seq.stopPoint?.length);
        hasVariants ||= sequences.length>1;
        const longest=sequences.sort((a,b)=>b.stopPoint.length-a.stopPoint.length)[0];
+       stopCoordinates[dir]=new Map((longest?.stopPoint??[])
+         .filter(stop=>Number.isFinite(stop.lat)&&Number.isFinite(stop.lon))
+         .map(stop=>[stop.id,[stop.lon,stop.lat]]));
        return (longest?.stopPoint??[]).map(stop=>[stop.id,stop.name,stop.stopLetter??'']);
      }));
      if(!results.some(stops=>stops.length)){routeError='missing';throw Error('Route not found')}
