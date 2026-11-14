@@ -74,9 +74,14 @@ const copy={
  official:['TfL 65 官方路線','Official TfL route 65']
 };
 let stopsFailed=false;
+let ledFrame=0;
+const reducedMotion=matchMedia('(prefers-reduced-motion: reduce)');
 function drawDestinationDisplay(){
- const label=line+' '+tr('即時站序','LIVE STOPS');
+ cancelAnimationFrame(ledFrame);
+ const terminal=destinations[direction];
+ const label=terminal?line+' '+terminal.toUpperCase():line;
  by('ledHeading').textContent=label;
+ const display=by('ledDisplay');
  const source=document.createElement('canvas');
  const mask=source.getContext('2d',{willReadFrequently:true});
  const font='bold 17px system-ui, sans-serif';
@@ -87,18 +92,54 @@ function drawDestinationDisplay(){
  mask.textBaseline='middle';
  mask.fillText(label,2,12);
  const pixels=mask.getImageData(0,0,source.width,source.height).data;
- const display=by('ledDisplay'),pitch=3;
- display.width=source.width*pitch;
- display.height=source.height*pitch;
- const ctx=display.getContext('2d');
+ const pitch=3;
+ const strip=document.createElement('canvas');
+ strip.width=source.width*pitch;
+ strip.height=source.height*pitch;
+ const dots=strip.getContext('2d');
  for(let y=0;y<source.height;y++){
    for(let x=0;x<source.width;x++){
-     ctx.fillStyle=pixels[(y*source.width+x)*4+3]>100?'#ffbd49':'#30261a';
-     ctx.beginPath();
-     ctx.arc(x*pitch+1.5,y*pitch+1.5,1.05,0,Math.PI*2);
-     ctx.fill();
+     if(pixels[(y*source.width+x)*4+3]<=100)continue;
+     dots.fillStyle='#ffbd49';
+     dots.beginPath();
+     dots.arc(x*pitch+1.5,y*pitch+1.5,1.05,0,Math.PI*2);
+     dots.fill();
    }
  }
+ const available=Math.max(pitch,display.closest('main').clientWidth-54);
+ display.width=Math.min(strip.width,Math.floor(available/pitch)*pitch);
+ display.height=strip.height;
+ const ctx=display.getContext('2d');
+ const background=document.createElement('canvas');
+ background.width=background.height=pitch;
+ const tile=background.getContext('2d');
+ tile.fillStyle='#30261a';
+ tile.beginPath();
+ tile.arc(1.5,1.5,1.05,0,Math.PI*2);
+ tile.fill();
+ const pattern=ctx.createPattern(background,'repeat');
+ function paint(offset){
+   ctx.clearRect(0,0,display.width,display.height);
+   ctx.fillStyle=pattern;
+   ctx.fillRect(0,0,display.width,display.height);
+   ctx.drawImage(strip,-offset,0);
+   if(offset)ctx.drawImage(strip,strip.width+36-offset,0);
+ }
+ if(strip.width<=display.width){paint(0);return}
+ if(reducedMotion.matches){
+   paint(0);
+   ctx.clearRect(0,0,display.width,display.height);
+   ctx.drawImage(strip,0,0,display.width,display.height);
+   return;
+ }
+ const start=performance.now();
+ function scroll(now){
+   const offset=Math.floor(Math.max(0,now-start-850)*.042/pitch)*pitch;
+   paint(offset%(strip.width+36));
+   ledFrame=requestAnimationFrame(scroll);
+ }
+ paint(0);
+ ledFrame=requestAnimationFrame(scroll);
 }
 function applyLanguage(){
  drawDestinationDisplay();
@@ -178,6 +219,7 @@ function createTracks(){
  }
 }
 function setDirection(scroll=true){
+ drawDestinationDisplay();
  for(const dir of directions){
    by(dir).hidden=!routes[dir].length;
    by(dir+'Panel').hidden=dir!==direction;
@@ -352,6 +394,8 @@ for(const route of ['65','371']){
 const official=document.querySelector('[data-copy="official"]');
 official.href='https://tfl.gov.uk/bus/route/'+line+'/';
 copy.official=['TfL '+line+' 官方路線','Official TfL route '+line];
+window.addEventListener('resize',drawDestinationDisplay);
+reducedMotion.addEventListener('change',drawDestinationDisplay);
 applyLanguage();
 if(!params.has('bus')&&params.get('route')==='sl7')location.replace('map.html?route=sl7');else start();
 </script>
