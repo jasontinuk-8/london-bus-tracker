@@ -30,7 +30,7 @@ header nav,.choices{display:flex;gap:5px;flex-wrap:wrap}.choices button[aria-pre
 .route-search{display:flex;align-items:end;flex-wrap:wrap;gap:6px;margin:0 0 12px}.route-search input{width:108px;padding:8px;border:1px solid #bbb;border-radius:8px;font:inherit}.route-search label{display:grid;gap:4px}.route-search button{background:#111;color:#fff}.route-search p{margin:0;flex-basis:100%}.route-search p:empty{display:none}
 </style>
 <main>
-<header><strong data-copy="brand"></strong><nav><button id="zh" aria-pressed="true" lang="zh-Hant">中</button><button id="en" aria-pressed="false" lang="en">ENG</button></nav><a href="map.html?route=sl7" data-copy="demo"></a></header>
+<header><strong data-copy="brand"></strong><nav><button id="zh" aria-pressed="true" lang="zh-Hant">中</button><button id="en" aria-pressed="false" lang="en">ENG</button></nav></header>
 <h1><span class="num" id="routeNumber">65</span><span data-copy="title"></span></h1>
 <form id="routeSearch" class="route-search"><label><span data-copy="searchLabel"></span><input id="routeInput" maxlength="8" placeholder="65, K3, SL7" required></label><button data-copy="search"></button><p id="searchNote" class="muted" role="status"></p></form><div class="controls"><div class="choices" id="routePicker" role="group" data-label="route"><button id="route65">65</button><button id="route371">371</button></div><div class="choices" role="group" data-label="direction"><button id="outbound" aria-pressed="true">Ealing Broadway</button><button id="inbound" aria-pressed="false">Kingston · Brook Street</button></div><label><span data-copy="boarding"></span> <select id="station"></select></label></div>
 <div class="layout">
@@ -56,7 +56,7 @@ let language='zh';
 try{if(localStorage.getItem('bus65-language')==='en')language='en'}catch{}
 const tr=(zh,en)=>language==='en'?en:zh;
 const copy={
- brand:['倫敦巴士','London Buses'],demo:['SL7 地圖示範','SL7 map demo'],
+ brand:['倫敦巴士','London Buses'],
  route:['巴士路線','Bus route'],searchLabel:['巴士號碼','Bus number'],search:['搜尋','Search'],title:['即時站序','Live stops'],direction:['行車方向','Direction'],boarding:['上車站','Boarding stop'],
  out:['往 Ealing Broadway','Towards Ealing Broadway'],in:['往 Kingston · Brook Street','Towards Kingston · Brook Street'],
  outScroll:['往 Ealing Broadway 全線站名','All stops towards Ealing Broadway'],
