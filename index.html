@@ -68,6 +68,9 @@ header nav,.choices{display:flex;gap:5px;flex-wrap:wrap}.choices button[aria-pre
 .rail .bus-icon::before{background:#173b68;height:7px;box-shadow:none}
 .rail .bus-icon::after{bottom:2px;left:3px;width:4px;height:4px;background:#ea333b;box-shadow:12px 0 #ea333b}
 .rail .track,.rail .track.inbound{--route-color:var(--line-colour)}
+.rail.double-line .track::before{
+ background:linear-gradient(to right,var(--line-colour) 0 35%,#fff 35% 65%,var(--line-colour) 65% 100%)
+}
 .rail .num,.rail .arrow{background:var(--line-colour);color:var(--line-text)}
 .rail #railLine{border:2px solid var(--line-colour);border-left-width:12px}
 .rail #modePicker button[aria-pressed=true]{background:var(--line-colour);border-color:var(--line-colour);color:var(--line-text)}
@@ -242,6 +245,8 @@ const railColours={
 const lightRailColours=new Set(['circle','hammersmith-city','jubilee','victoria','waterloo-city','lioness','suffragette']);
 const routeColour=railColours[line]??'#0019A8';
 const routeTextColour=lightRailColours.has(line)?'#111':'#fff';
+const doubleRailLine=mode==='overground'||mode==='elizabeth-line';
+document.documentElement.classList.toggle('double-line',doubleRailLine);
 document.documentElement.style.setProperty('--line-colour',routeColour);
 document.documentElement.style.setProperty('--line-text',routeTextColour);
 function selectMode(next,id){
@@ -512,7 +517,9 @@ function drawFullRoute(){
  routeOverlay.clearLayers();
  if(!geometry){drawLiveMap();return}
  const color=rail?routeColour:direction==='inbound'?'#0877b9':'#7619d8';
- const route=L.polyline(geometry.points.map(([lon,lat])=>[lat,lon]),{color,weight:5}).addTo(routeOverlay);
+ const routePoints=geometry.points.map(([lon,lat])=>[lat,lon]);
+ const route=L.polyline(routePoints,{color,weight:doubleRailLine?10:5}).addTo(routeOverlay);
+ if(doubleRailLine)L.polyline(routePoints,{color:'#fff',weight:4,interactive:false}).addTo(routeOverlay);
  geometry.offsets.forEach((offset,index)=>{
    const i=Math.floor(offset),a=geometry.points[i],b=geometry.points[i+1]??a;
    const [lon,lat]=stopCoordinates[direction]?.get(stops[index][0])??a.map((value,j)=>value+(b[j]-value)*(offset-i));
