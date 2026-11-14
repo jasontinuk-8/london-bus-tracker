@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="zh-Hant">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>倫敦巴士地圖</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f7f8f5;color:#152a23;font-family:Inter,system-ui,sans-serif}main{max-width:1160px;margin:auto;padding:28px 24px 40px}header{display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #dbe3db;padding-bottom:18px}header strong{font-size:18px}.tag{border:1px solid #cfddd2;border-radius:99px;padding:7px 12px;color:#355747;font-size:13px}h1{font-size:clamp(32px,6vw,56px);margin:23px 0 8px;letter-spacing:-.045em;line-height:1.1}.route{background:#143f30;color:white;padding:3px 10px;border-radius:8px;display:inline-block;letter-spacing:-.03em}.sub{margin:0 0 22px;color:#486154}.layout{display:grid;grid-template-columns:minmax(0,2fr) minmax(270px,1fr);gap:16px}.panel{background:#fff;border:1px solid #d8e2d9;border-radius:19px;overflow:hidden}.map{position:relative;background:#e9eee5;min-height:450px}svg{display:block;width:100%;height:100%;min-height:450px;touch-action:none;cursor:grab}svg:active{cursor:grabbing}.zoom{position:absolute;top:14px;right:14px;display:grid;gap:5px}.zoom button{width:42px;height:42px;background:white;border:1px solid #cad8cd;border-radius:9px;font-size:20px}.legend{position:absolute;left:12px;bottom:12px;background:#fff;padding:8px 10px;border-radius:8px;font-size:12px;color:#355747;pointer-events:none}.side{padding:18px}h2{font-size:20px;margin:6px 0}label,.muted{color:#486154;font-size:13px}select{width:100%;margin:7px 0 16px;padding:10px;border:1px solid #cad8cd;border-radius:9px;background:white;color:inherit;font:inherit}.arrival{background:#e9f4ed;border-radius:13px;padding:15px;margin:12px 0}.time{font-size:42px;line-height:1;font-weight:780;letter-spacing:-.07em}.unit{font-size:14px;margin-left:6px}.note{font-size:13px;line-height:1.55;color:#486154}.stop,.bus{cursor:pointer;outline-offset:4px}.stop text,.bus text{font-family:system-ui,sans-serif;paint-order:stroke;stroke:#eef1e8;stroke-width:4;stroke-linejoin:round;fill:#142f25;font-weight:650;font-size:13px}.stop .dot{fill:white;stroke:#17694e;stroke-width:3}.stop.selected .dot{fill:#17694e;stroke:white;stroke-width:3}.stop:focus-visible,.bus:focus-visible{outline:2px solid #143f30}.actions{display:flex;gap:7px;flex-wrap:wrap}.actions button{font:inherit;font-size:13px;padding:8px 10px;border:1px solid #cad8cd;border-radius:8px;background:#fff;color:inherit}button,select{cursor:pointer}a{color:#225843}footer{margin-top:12px;font-size:12px;color:#486154}@media(max-width:720px){main{padding:18px 12px}.layout{grid-template-columns:1fr}.map,svg{min-height:330px}.side{padding:14px}}
+</style>
+<main>
+<header><strong>倫敦巴士地圖</strong><span class="tag">互動示範</span></header>
+<h1><span class="route" id="number">65</span> <span id="heading"></span></h1>
+<p class="sub" id="summary"></p><label for="routeChoice">路線同方向</label> <select id="routeChoice" style="width:auto;max-width:100%"><option value="north">65 往 Ealing Broadway</option><option value="south">65 往 Kingston · Brook Street</option><option value="sl7">SL7 往 Heathrow</option></select>
+<div class="layout">
+<section class="panel map" aria-label="巴士路線示意地圖">
+<svg id="map" viewBox="0 0 680 470" aria-label="可拖動及放大嘅路線示意地圖">
+<defs><pattern id="blocks" width="52" height="44" patternUnits="userSpaceOnUse" patternTransform="rotate(-16)"><path d="M0 0H52V44" fill="none" stroke="#f9faf5" stroke-width="5"/><path d="M26 0V44" stroke="#f4f6ef" stroke-width="2"/></pattern></defs>
+<rect x="-600" y="-600" width="1900" height="1700" fill="#e8eee4"/><rect x="-600" y="-600" width="1900" height="1700" fill="url(#blocks)"/>
+<path d="M410 204q55-59 118-35l49 57-15 57-93-10z M64 299l91-26 48 40-8 64-113 20z" fill="#d6e6d4"/>
+<path d="M-80 392C35 410 116 256 235 263S348 340 417 293 419 98 516 122 556 200 721 113" fill="none" stroke="#b0d9e3" stroke-width="20"/>
+<text x="79" y="332" fill="#3d6774" transform="rotate(-35 79 332)" font-size="12">River Thames</text>
+<text x="457" y="204" fill="#6a7e69" font-size="12">Richmond</text>
+<path id="routeHalo" d="M79 91L151 107 230 133 270 174 330 214 352 272 404 311 477 351 557 391 607 393" stroke="#fff" stroke-width="13" fill="none" stroke-linejoin="round" stroke-linecap="round"/>
+<path id="routePath" d="M79 91L151 107 230 133 270 174 330 214 352 272 404 311 477 351 557 391 607 393" stroke="#177052" stroke-width="6" fill="none" stroke-linejoin="round" stroke-linecap="round"/>
+<g id="stops"></g>
+<g id="bus" class="bus" role="button" tabindex="0" aria-label="查看巴士估算位置">
+<circle r="16" fill="#173f31" stroke="#fff" stroke-width="3"/><rect x="-6" y="-7" width="12" height="12" rx="3" fill="#fff"/><path d="M-4-4h8v4h-8zM-4 4v3m8-3v3" stroke="#173f31" stroke-width="1.5"/><text x="-5" y="32" text-anchor="middle">SL7</text></g>
+</svg>
+<div class="zoom"><button id="plus" aria-label="放大">+</button><button id="minus" aria-label="縮細">−</button><button id="reset" aria-label="重設地圖">↺</button></div>
+<div class="legend">路線示意 · 巴士位置為模擬估算</div>
+</section>
+<section class="panel side">
+<label for="station">揀上車站</label><select id="station"></select>
+<div class="muted" id="destination"></div>
+<h2 id="name"></h2>
+<div class="arrival"><div class="muted">下一班 · 模擬倒數</div><strong class="time" id="time"></strong><span class="unit" id="unit"></span></div>
+<div class="actions"><button id="locate">睇架車去到邊</button><button id="restart">重播示範</button></div>
+<p class="note" id="info" aria-live="polite">撳地圖上嘅巴士圖示，可以睇佢估計喺邊兩個站之間。</p>
+</section>
+</div>
+<footer>示範倒數及位置使用模擬資料。站序參考 <a id="reference" href="https://tfl.gov.uk/bus/route/65/" target="_blank" rel="noopener">TfL 官方路線</a>。65 顯示部分沿途站。</footer>
+</main>
+<script>
+const sl7=[
+ {name:'Kingston Station',letter:'T',x:607,y:393,label:[-10,28,'end'],eta:0},
+ {name:'Kingston / Wood Street',letter:'P1',x:557,y:391,label:[-6,-18,'middle'],eta:90},
+ {name:'Broad Street / Teddington',letter:'F',x:404,y:311,label:[14,-14,'start'],eta:570},
+ {name:'Hatton Cross Station',letter:'E',x:230,y:133,label:[13,-15,'start'],eta:1770},
+ {name:'Heathrow Central Bus Station',letter:'',x:79,y:91,label:[-23,-20,'start'],eta:2370}
+];
+const by=id=>document.getElementById(id);
+const map=by('map'), path=by('routePath'), bus=by('bus'), station=by('station');
+const north=[
+ ['Brook Street', '', 147, 427, 0],
+ ['Kingston Station', '', 177, 391, 3],
+ ['Tiffin Girls School', 'G', 230, 341, 8],
+ ['Ham Parade', '', 249, 297, 10],
+ ['George Street', '', 310, 251, 23],
+ ['Richmond Station', '', 365, 232, 24],
+ ['Kew Gardens / Lion Gate', '', 444, 185, 29],
+ ['Kew Bridge', '', 475, 137, 36],
+ ['South Ealing Station', '', 525, 85, 52],
+ ['Ealing Broadway Station', '', 563, 45, 61]
+];
+const south=[
+ north[9],north[8],north[7],north[6],north[5],
+ ['Richmond Bus Station','',324,256],north[3],
+ ['Tiffin Girls School','',230,341],north[1],north[0]
+].map((row,i)=>[...row.slice(0,4),[0,9,25,33,38,41,54,57,62,67][i]]);
+const datasets={
+ north:{number:'65',end:'Ealing Broadway',origin:'Kingston · Brook Street',rows:north},
+ south:{number:'65',end:'Kingston · Brook Street',origin:'Ealing Broadway Station',rows:south},
+ sl7:{number:'SL7',end:'Heathrow Central',origin:'Kingston Station'}
+};
+const originalPath=path.getAttribute('d');
+let stops=[], stopNodes=[], length, current, selected=0, started=Date.now(), showingBus=false, point, segment=0, moved=false;
+function pathOffset(stop){
+ let best=0, distance=Infinity;
+ for(let offset=0;offset<=length;offset+=1){
+   const p=path.getPointAtLength(offset), next=Math.hypot(p.x-stop.x,p.y-stop.y);
+   if(next<distance){best=offset;distance=next}
+ }
+ return best;
+}
+function setRoute(key){
+ current=datasets[key];
+ const {number,end,origin,rows}=current;
+ stops=rows?rows.map(([name,letter,x,y,minutes],i)=>({
+   name,letter,x,y,eta:minutes*60,
+   label: x>=500?[-12,i===0||i===rows.length-1?-11:5,'end']:[12,i%2===0?-8:15,'start']
+ })):sl7;
+ const route=rows?'M'+rows.map(row=>row[2]+' '+row[3]).join('L'):originalPath;
+ path.setAttribute('d',route);
+ by('routeHalo').setAttribute('d',route);
+ length=path.getTotalLength();
+ by('number').textContent=number;
+ by('heading').textContent='往 '+end;
+ by('summary').textContent=origin+' → '+end;
+ by('destination').textContent='往 '+end;
+ by('reference').href='https://tfl.gov.uk/bus/route/'+number.toLowerCase()+'/';
+ bus.querySelector('text').textContent=number;
+ station.replaceChildren();
+ by('stops').replaceChildren();
+ stopNodes=[];
+ stops.forEach((s,i)=>{
+   s.offset=pathOffset(s);
+   const label=s.letter ? s.name+' · '+s.letter : s.name;
+   station.add(new Option(label,i));
+   const g=document.createElementNS('http://www.w3.org/2000/svg','g');
+   g.setAttribute('class','stop');g.setAttribute('role','button');g.setAttribute('tabindex','0');
+   g.setAttribute('aria-label',label);g.setAttribute('transform','translate('+s.x+' '+s.y+')');
+   g.innerHTML='<circle r="16" fill="transparent"/><circle class="dot" r="7"/><text x="'+s.label[0]+'" y="'+s.label[1]+'" text-anchor="'+s.label[2]+'">'+label+'</text>';
+   g.addEventListener('click',()=>{if(!moved)select(i)});
+   g.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();select(i)}});
+   by('stops').append(g);stopNodes.push(g);
+ });
+ by('info').textContent='撳地圖上嘅巴士圖示，可以睇佢估計喺邊兩個站之間。';
+ showingBus=false;
+ started=Date.now();
+ view=[0,0,680,470];draw();
+ select(stops.findIndex(s=>s.name==='Kingston Station'));
+}
+function select(i){
+ selected=i;station.value=i;
+ stopNodes.forEach((node,index)=>{node.classList.toggle('selected',index===i);node.setAttribute('aria-pressed',String(index===i))});
+ by('name').textContent=station.options[i].text;refresh();
+}
+function refresh(){
+ const elapsed=(Date.now()-started)/1000;
+ const delta=360+stops[selected].eta-stops.find(s=>s.name==='Kingston Station').eta-elapsed;
+ const interval=current.number==='65'?480:900;
+ const eta=Math.ceil(((delta%interval)+interval)%interval);
+ by('time').textContent=eta>0?Math.ceil(eta/60):(eta===0?'到站':'已過站');
+ by('unit').textContent=eta>0?'分鐘':'';
+ const positionTime=elapsed+100;
+ segment=stops.findIndex((s,i)=>i>0&&positionTime<s.eta)-1;
+ if(segment<0)segment=stops.length-2;
+ const from=stops[segment], to=stops[segment+1];
+ const fraction=Math.max(0,Math.min(1,(positionTime-from.eta)/(to.eta-from.eta)));
+ point=path.getPointAtLength(from.offset+(to.offset-from.offset)*fraction);
+ bus.setAttribute('transform','translate('+point.x+' '+point.y+')');
+ if(showingBus)by('info').textContent='地圖上嗰架示範 '+current.number+' 約喺 '+from.name+' 同 '+to.name+' 之間。倒數顯示你揀嘅站下一班車。';
+}
+station.addEventListener('change',()=>select(Number(station.value)));
+function showBus(){showingBus=true;refresh()}
+bus.addEventListener('click',()=>{if(!moved)showBus()});
+bus.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();showBus()}});
+let view=[0,0,680,470], drag;
+function draw(){map.setAttribute('viewBox',view.join(' '))}
+function zoom(f){const w=Math.max(250,Math.min(920,view[2]*f)),h=w*470/680;view=[view[0]+(view[2]-w)/2,view[1]+(view[3]-h)/2,w,h];draw()}
+by('plus').onclick=()=>zoom(.8);by('minus').onclick=()=>zoom(1.25);by('reset').onclick=()=>{view=[0,0,680,470];draw()};
+by('locate').onclick=()=>{showBus();view=[point.x-200,point.y-138,400,400*470/680];draw()};
+by('restart').onclick=()=>{started=Date.now();refresh()};
+map.addEventListener('pointerdown',e=>{moved=false;drag={x:e.clientX,y:e.clientY,id:e.pointerId,scale:1/map.getScreenCTM().a,view:[...view]}});
+map.addEventListener('pointermove',e=>{
+ if(!drag||e.pointerId!==drag.id)return;
+ const dx=e.clientX-drag.x,dy=e.clientY-drag.y;
+ if(!moved&&Math.hypot(dx,dy)<5)return;
+ if(!moved)map.setPointerCapture(e.pointerId);
+ moved=true;view=[drag.view[0]-dx*drag.scale,drag.view[1]-dy*drag.scale,drag.view[2],drag.view[3]];draw();
+});
+for(const event of ['pointerup','pointercancel','lostpointercapture','pointerleave'])map.addEventListener(event,()=>{drag=null});
+const choice=by('routeChoice');
+const initial=new URLSearchParams(location.search).get('route');
+choice.value=Object.hasOwn(datasets,initial)?initial:'north';
+choice.addEventListener('change',()=>setRoute(choice.value));
+setRoute(choice.value);setInterval(refresh,1000);
+</script>
+</html>
