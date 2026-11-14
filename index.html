@@ -827,11 +827,12 @@ function render(){
  by('vehiclePanel').classList.toggle('active',!!chosen);
  by('stopInfoPanel').hidden=!!chosen;
  if(chosen){
+   const selectedDirection=chosen.dir;
    const selectedVehicles=[...chosen.ids].map(vehicleId=>({
      vehicleId,
-     calls:vehicleJourney(vehicleId,chosen.dir)
+     calls:vehicleJourney(vehicleId,selectedDirection)
    })).filter(vehicle=>vehicle.calls.length);
-   const destination=towards(chosen.dir);
+   const destination=towards(selectedDirection);
    by('vehicleDetail').textContent=selectedVehicles.length
      ?destination+tr(' · 後續停站及預計時間',' · Upcoming stops and expected times')
      :tr("暫無後續停站預測。","No upcoming stop predictions.");
@@ -845,7 +846,14 @@ function render(){
        ?tr('推算位置：','Estimated position: ')+stops[firstIndex-1][1]+' → '+stops[firstIndex][1]
        :tr('預計由總站開出','Expected to depart terminus');
      item(details,position);
-     calls.forEach(p=>item(details,stopAndTime(p)));
+     calls.forEach(p=>{
+       const stopIndex=routes[selectedDirection].findIndex(([id])=>id===p.naptanId);
+       item(details,stopAndTime(p),()=>{
+         if(stopIndex<0)return;
+         if(direction!==selectedDirection){direction=selectedDirection;setDirection(false)}
+         choose(stopIndex);
+       });
+     });
    });
  }else{
    const count=fleet.length;
