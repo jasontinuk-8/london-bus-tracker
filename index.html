@@ -67,6 +67,12 @@ header nav,.choices{display:flex;gap:5px;flex-wrap:wrap}.choices button[aria-pre
 .rail .bus-icon{background:#fff;border:2px solid #173b68;border-radius:7px 7px 4px 4px;width:26px;height:24px}
 .rail .bus-icon::before{background:#173b68;height:7px;box-shadow:none}
 .rail .bus-icon::after{bottom:2px;left:3px;width:4px;height:4px;background:#ea333b;box-shadow:12px 0 #ea333b}
+.rail .track,.rail .track.inbound{--route-color:var(--line-colour)}
+.rail .num,.rail .arrow{background:var(--line-colour);color:var(--line-text)}
+.rail #railLine{border:2px solid var(--line-colour);border-left-width:12px}
+.rail #modePicker button[aria-pressed=true]{background:var(--line-colour);border-color:var(--line-colour);color:var(--line-text)}
+.rail .bus-icon{border-color:var(--line-colour)}
+.rail .bus-icon::before{background:var(--line-colour)}
 </style>
 <main>
 <header><strong data-copy="brand"></strong><nav><button id="zh" aria-pressed="true" lang="zh-Hant">中</button><button id="en" aria-pressed="false" lang="en">ENG</button></nav></header>
@@ -226,6 +232,18 @@ const railOptions=railLines[mode]??[];
 const selectedLine=railOptions.find(([id])=>id===params.get('line'))??railOptions[0];
 const line=rail?selectedLine[0]:validLine.test(requested)&&requested!=='NORTH'&&requested!=='SOUTH'?requested:'65';
 const lineName=rail?selectedLine[1]:line;
+const railColours={
+ bakerloo:'#B26300',central:'#DC241F',circle:'#FFC80A',district:'#007D32',
+ 'hammersmith-city':'#F589A6',jubilee:'#838D93',metropolitan:'#9B0058',
+ northern:'#000000',piccadilly:'#0019A8',victoria:'#039BE5','waterloo-city':'#76D0BD',
+ liberty:'#5D6061',lioness:'#FAA61A',mildmay:'#0077AD',weaver:'#823A62',
+ suffragette:'#5BBD72',windrush:'#ED1B00',elizabeth:'#60399E'
+};
+const lightRailColours=new Set(['circle','hammersmith-city','jubilee','victoria','waterloo-city','lioness','suffragette']);
+const routeColour=railColours[line]??'#0019A8';
+const routeTextColour=lightRailColours.has(line)?'#111':'#fff';
+document.documentElement.style.setProperty('--line-colour',routeColour);
+document.documentElement.style.setProperty('--line-text',routeTextColour);
 function selectMode(next,id){
  location.search=next==='bus'?'?route=65':'?'+new URLSearchParams({mode:next,...(id?{line:id}:{})});
 }
@@ -493,7 +511,7 @@ function drawFullRoute(){
  displayedGeometry=geometry;
  routeOverlay.clearLayers();
  if(!geometry){drawLiveMap();return}
- const color=direction==='inbound'?'#0877b9':'#7619d8';
+ const color=rail?routeColour:direction==='inbound'?'#0877b9':'#7619d8';
  const route=L.polyline(geometry.points.map(([lon,lat])=>[lat,lon]),{color,weight:5}).addTo(routeOverlay);
  geometry.offsets.forEach((offset,index)=>{
    const i=Math.floor(offset),a=geometry.points[i],b=geometry.points[i+1]??a;
