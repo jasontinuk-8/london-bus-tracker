@@ -118,7 +118,7 @@ header nav,.choices{display:flex;gap:5px;flex-wrap:wrap}.choices button[aria-pre
 </section>
 <section class="card side"><div id="vehiclePanel"><h2 data-copy="positions"></h2><p class="muted" id="vehicleDetail" aria-live="polite">撳黃燈睇下一站。 / Select a yellow light to see the next stop.</p><button id="clearVehicle" type="button" data-copy="clearVehicle" hidden></button><ul class="list" id="vehicleList" aria-live="polite"></ul><h2 data-copy="fleet"></h2><div class="fleet" id="fleetList"></div></div>
 <p class="status muted" id="status" role="status">讀取 TfL 資料中… / Loading TfL data…</p>
-<div><h2 id="selectedStop">到站預測 / Arrivals</h2><strong class="count" id="centerEta">讀取中 / Loading</strong><ul class="list" id="arrivals"></ul><section id="departures" hidden><h3 data-copy="departures"></h3><ul class="list" id="departureList" aria-live="polite"></ul></section></div>
+<div id="stopInfoPanel"><h2 id="selectedStop">到站預測 / Arrivals</h2><strong class="count" id="centerEta">讀取中 / Loading</strong><ul class="list" id="arrivals"></ul><section id="departures" hidden><h3 data-copy="departures"></h3><ul class="list" id="departureList" aria-live="polite"></ul></section></div>
 <div><h2 data-copy="trafficTitle"></h2><p id="trafficDetail" class="muted" aria-live="polite"></p></div>
 </section>
 </div>
@@ -825,6 +825,7 @@ function render(){
  const details=by('vehicleList');details.replaceChildren();
  by('clearVehicle').hidden=!chosen;
  by('vehiclePanel').classList.toggle('active',!!chosen);
+ by('stopInfoPanel').hidden=!!chosen;
  if(chosen){
    const selectedVehicles=[...chosen.ids].map(vehicleId=>({
      vehicleId,
