@@ -646,11 +646,23 @@ by('routeSearch').onsubmit=event=>{
 };
 const destinations={};
 const towards=dir=>tr('往 ','Towards ')+destinations[dir];
-let direction=new URLSearchParams(location.search).get('route')==='south'?'inbound':'outbound';
 const directions=['outbound','inbound'];
+const linkDirection=!rail&&directions.includes(params.get('direction'))?params.get('direction'):null;
+const linkStop=rail?null:params.get('stop');
+const linkAlight=rail?null:params.get('alight');
+const linkVehicle=rail?null:params.get('vehicle');
+let pendingLinkedVehicle=null;
+let direction=linkDirection??(params.get('route')==='south'?'inbound':'outbound');
+function linkStopScore(stops,idOf){
+ if(!linkStop)return 0;
+ const board=stops.findIndex(stop=>idOf(stop)===linkStop);
+ if(board<0)return 0;
+ return linkAlight&&stops.findIndex(stop=>idOf(stop)===linkAlight)>board?2:1;
+}
 const nodes={};
 let routes, stops=[], selected=0, predictions=[], updated=0, busy=false, failed=false, chosen=null;
 function choose(i,scroll=true){
+ pendingLinkedVehicle=null;
  chosen=null;
  selected=i;station.value=i;
  try{localStorage.setItem('bus'+line+'-stop-'+direction,stops[i][0])}catch{}
@@ -836,7 +848,7 @@ function createTracks(){
    });
  }
 }
-function setDirection(scroll=true){
+function setDirection(scroll=true,initialStop=null){
  trafficSelection=null;matchedReports=new Map();
  drawDestinationDisplay();
  for(const dir of directions){
@@ -854,8 +866,9 @@ function setDirection(scroll=true){
  });
  let savedStop;
  try{savedStop=localStorage.getItem('bus'+line+'-stop-'+direction)}catch{}
+ const linkedIndex=stops.findIndex(([id])=>id===initialStop);
  const savedIndex=stops.findIndex(([id])=>id===savedStop);
- choose(Math.max(0,savedIndex),scroll);
+ choose(linkedIndex>=0?linkedIndex:Math.max(0,savedIndex),scroll);
  renderTraffic();
 }
 function eta(p,locale=language){const seconds=(Date.parse(p.expectedArrival)-Date.now())/1000;return seconds<=30?(locale==='en'?'Due':'即將到站'):Math.ceil(seconds/60)+(locale==='en'?' min':' 分鐘')}
@@ -1041,6 +1054,14 @@ function render(){
      delay.append(note);
    }
  });
+ if(pendingLinkedVehicle&&usable){
+   const bus=records.find(p=>p.vehicleId===pendingLinkedVehicle);
+   if(bus){
+     chosen={dir:direction,ids:new Set([bus.vehicleId])};
+     reveal(direction,Math.max(0,lookup.get(bus.naptanId)-1));
+   }
+   pendingLinkedVehicle=null;
+ }
  const groups={outbound:new Map(),inbound:new Map()};
  const routeIds=Object.fromEntries(directions.map(dir=>[dir,new Set(routes[dir].map(row=>row[0]))]));
  const seen=new Set();
@@ -1263,17 +1284,25 @@ async function start(){
        const sequences=rail?railRouteSequences(data,segments):segments;
        if(rail)branches[dir]=sequences;
        hasVariants ||= !rail&&sequences.length>1;
-       const longest=sequences.sort((a,b)=>b.stopPoint.length-a.stopPoint.length)[0];
-       stopCoordinates[dir]=new Map((longest?.stopPoint??[])
+       const preferred=sequences.sort((a,b)=>
+         linkStopScore(b.stopPoint,stop=>stop.id)-linkStopScore(a.stopPoint,stop=>stop.id)
+         ||b.stopPoint.length-a.stopPoint.length)[0];
+       stopCoordinates[dir]=new Map((preferred?.stopPoint??[])
          .filter(stop=>Number.isFinite(stop.lat)&&Number.isFinite(stop.lon))
          .map(stop=>[stop.id,[stop.lon,stop.lat]]));
-       return (longest?.stopPoint??[]).map(stop=>[stop.id,stop.name,stop.stopLetter??'']);
+       return (preferred?.stopPoint??[]).map(stop=>[stop.id,stop.name,stop.stopLetter??'']);
      }));
      if(!results.some(stops=>stops.length)){routeError='missing';throw Error('Route not found')}
      routes=Object.fromEntries(directions.map((dir,i)=>[dir,results[i]]));
    }
    if(rail)directions.forEach(applyBranch);
    by('locate').disabled=false;
+   if(linkStop){
+     const other=directions.find(dir=>dir!==direction);
+     const score=linkStopScore(routes[direction],row=>row[0]);
+     const otherScore=linkStopScore(routes[other],row=>row[0]);
+     if(otherScore>score&&(!linkDirection||score===0))direction=other;
+   }
    if(!routes[direction].length)direction=directions.find(dir=>routes[dir].length);
    for(const [dir,key] of [['outbound','out'],['inbound','in']]){
      const last=routes[dir].at(-1);
@@ -1284,7 +1313,9 @@ async function start(){
      copy[key+'Scroll']=['往 '+destinations[dir]+' 全線站名','All stops towards '+destinations[dir]];
    }
    createTracks();applyLanguage();
-   setDirection();if(rail)setupRailJourneyPicker();refreshTraffic();setInterval(refreshTraffic,300000);refresh();setInterval(refresh,30000);setInterval(render,5000);
+   setDirection(true,linkStop);
+   pendingLinkedVehicle=linkVehicle;
+   if(rail)setupRailJourneyPicker();refreshTraffic();setInterval(refreshTraffic,300000);refresh();setInterval(refresh,30000);setInterval(render,5000);
  }catch{stopsFailed=true;routeError ||= 'unavailable';applyLanguage()}
 }
 by('routeInput').value=line;
