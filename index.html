@@ -2,10 +2,10 @@
 <html lang="zh-Hant">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>65 巴士 · Live route 65</title>
+<title>倫敦交通追蹤</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
-*{box-sizing:border-box}body{margin:0;background:#f4f6f1;color:#153128;font:15px system-ui,sans-serif}main{max-width:1080px;margin:auto;padding:22px 16px 36px}header{display:flex;justify-content:space-between;align-items:center;gap:12px;border-bottom:1px solid #d5e0d8;padding-bottom:15px}a{color:#205d47}h1{font-size:clamp(29px,5vw,48px);letter-spacing:-.045em;margin:16px 0}.num{display:inline-block;background:#123f30;color:white;padding:2px 12px;border-radius:9px;margin-right:8px}.controls{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}button,select,input[type="search"]{font:inherit;color:inherit;border:1px solid #c9d8ce;border-radius:9px;background:#fff;padding:8px 10px}button,select,summary{cursor:pointer}select{max-width:100%}.layout{display:grid;grid-template-columns:minmax(0,1.8fr) minmax(250px,1fr);gap:14px}.card{background:#fff;border:1px solid #d5e0d8;border-radius:17px;padding:13px;min-width:0}.diagram{padding:5px 4px 10px}svg{width:100%;display:block;background:#f9faf7;border-radius:14px}.dot,.vehicle{cursor:pointer}.dot:focus-visible,.vehicle:focus-visible{outline:2px solid #166b50}.labels{font-weight:650;fill:#25493b}.side h2{font-size:17px;margin:6px 0}.side p{margin:8px 0;line-height:1.5}.muted{color:#496456;font-size:13px}.status{padding:8px 10px;background:#edf4ef;border-radius:8px}.count{font-size:36px;font-weight:800;letter-spacing:-.06em}.list{list-style:none;padding:0;margin:6px 0}.list li{border-bottom:1px solid #e6ede7;padding:7px 0}.list button{width:100%;text-align:left}.stops{margin-top:14px}.stops ol{columns:2;padding-left:32px}.stops li{break-inside:avoid;margin:4px 0}.stops button{text-align:left;padding:4px 6px}.legend{margin:8px 10px 0}.source{margin:14px 2px 0}@media(max-width:690px){.layout{grid-template-columns:1fr}.stops ol{columns:1}}
+*{box-sizing:border-box}body{margin:0;background:#f4f6f1;color:#153128;font:15px system-ui,sans-serif}main{max-width:1080px;margin:auto;padding:24px 16px 36px}a{color:#205d47}.destination-display{font-size:clamp(29px,5vw,48px);letter-spacing:-.045em;margin:16px 0}.num{display:inline-block;background:#123f30;color:white;padding:2px 12px;border-radius:9px;margin-right:8px}.controls{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}button,select,input[type="search"]{font:inherit;color:inherit;border:1px solid #c9d8ce;border-radius:9px;background:#fff;padding:8px 10px}button,select,summary{cursor:pointer}select{max-width:100%}.layout{display:grid;grid-template-columns:minmax(0,1.8fr) minmax(250px,1fr);gap:14px}.card{background:#fff;border:1px solid #d5e0d8;border-radius:17px;padding:13px;min-width:0}.diagram{padding:5px 4px 10px}svg{width:100%;display:block;background:#f9faf7;border-radius:14px}.dot,.vehicle{cursor:pointer}.dot:focus-visible,.vehicle:focus-visible{outline:2px solid #166b50}.labels{font-weight:650;fill:#25493b}.side h2{font-size:17px;margin:6px 0}.side p{margin:8px 0;line-height:1.5}.muted{color:#496456;font-size:13px}.status{padding:8px 10px;background:#edf4ef;border-radius:8px}.count{font-size:36px;font-weight:800;letter-spacing:-.06em}.list{list-style:none;padding:0;margin:6px 0}.list li{border-bottom:1px solid #e6ede7;padding:7px 0}.list button{width:100%;text-align:left}.stops{margin-top:14px}.stops ol{columns:2;padding-left:32px}.stops li{break-inside:avoid;margin:4px 0}.stops button{text-align:left;padding:4px 6px}.legend{margin:8px 10px 0}.source{margin:14px 2px 0}@media(max-width:690px){.layout{grid-template-columns:1fr}.stops ol{columns:1}}
 
 .layout{grid-template-columns:1fr}.layout .diagram{padding:12px}.track-heading{display:flex;align-items:center;gap:8px;margin:0;padding:8px 0;font-size:16px}.arrow{background:#134c38;color:white;border-radius:6px;padding:2px 8px}.viewport{overflow-x:auto;overscroll-behavior-inline:contain;border:1px solid #d5e0d8;border-radius:10px;background:#f8faf7}.track{display:flex;width:max-content;min-width:100%;padding:0 12px;position:relative}.track::before{content:'';position:absolute;inset:38px 56px auto;border-top:4px solid #a1cbb1}.track.inbound{flex-direction:row-reverse;border-top:1px solid #d5e0d8}.stop-cell{width:100px;flex:none;text-align:center;position:relative;padding:0 3px 10px}.stop-node{display:flex;align-items:center;justify-content:center;gap:1px;width:54px;height:54px;margin:12px auto 4px;border:3px solid transparent;border-radius:50%;background:transparent;padding:0;color:#144b38;font-weight:800}.stop-node.active{border-color:#11714e;background:#e5f5eb}.stop-node[data-selected=true]{box-shadow:0 0 0 2px #254c3e}.stop-node svg{width:17px;height:17px;background:none;border-radius:0}.station-label{background:transparent;border:0;padding:3px 0;width:100%;min-height:55px;font-size:12px;line-height:1.25;overflow-wrap:anywhere}.station-label[aria-pressed=true]{font-weight:750;color:#07543c}.station-letter{display:block;font-size:11px;color:#496456;margin-top:4px}.viewport:focus-visible{outline:2px solid #11714e}.legend{margin:8px 0}.side{display:grid;grid-template-columns:1fr 1fr;gap:6px 18px}.side .status{grid-column:1/-1}.side h2{margin-top:4px}@media(max-width:600px){.side{grid-template-columns:1fr}}
 
@@ -26,7 +26,7 @@ body,.viewport,.status{background:#fff;color:#111}.card,.viewport{border-color:#
  .side p,.side li{overflow-wrap:anywhere;font-size:12px}
  .side .count{font-size:26px}
 }
-header nav,.choices{display:flex;gap:5px;flex-wrap:wrap}.choices button[aria-pressed=true],header button[aria-pressed=true]{background:#111;color:#fff;border-color:#111}.choices button,header button{font-size:13px;padding:6px 9px}header{flex-wrap:wrap}.controls{align-items:center}
+.choices{display:flex;gap:5px;flex-wrap:wrap}.choices button[aria-pressed=true]{background:#111;color:#fff;border-color:#111}.choices button{font-size:13px;padding:6px 9px}.controls{align-items:center}
 .journey-vehicle{font-weight:800;color:#111;border-bottom:0!important;padding-top:12px!important}.journey-vehicle+li{color:#555;font-size:12px}#vehiclePanel{border:1px solid #e1e6e2;border-radius:12px;padding:10px;margin-bottom:10px;background:#fafbf9}#vehiclePanel.active{border-color:#b58a00;background:#fffbe6;box-shadow:0 0 0 2px #ffe04a}
 .fleet{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.fleet button{padding:4px 7px;font:600 12px ui-monospace,monospace}.fleet button[aria-pressed=true]{background:#ffe04a;border-color:#8a6400}.stop-node.tracked{box-shadow:0 0 0 2px #8a6400}
 .route-search{display:flex;align-items:end;flex-wrap:wrap;gap:6px;margin:0 0 12px}.route-search input{width:108px;padding:8px;border:1px solid #bbb;border-radius:8px;font:inherit}.route-search label{display:grid;gap:4px}.route-search button{background:#111;color:#fff}.route-search p{margin:0;flex-basis:100%}.route-search p:empty{display:none}
@@ -93,10 +93,24 @@ header nav,.choices{display:flex;gap:5px;flex-wrap:wrap}.choices button[aria-pre
 .rail #modePicker button[aria-pressed=true]{background:var(--line-colour);border-color:var(--line-colour);color:var(--line-text)}
 .rail .bus-icon{border-color:var(--line-colour)}
 .rail .bus-icon::before{background:var(--line-colour)}
+
+.site-header{background:#142640;color:#fff;border-radius:24px;padding:26px clamp(16px,5vw,36px);margin-bottom:16px;font:16px/1.5 system-ui,sans-serif}
+.site-header h1{font-size:clamp(28px,6vw,42px);line-height:1.1;margin:8px 0}
+.site-header p{margin:0 0 8px;color:#d6e4f5}
+.site-header .locale{text-align:right}
+.site-header button{min-height:44px;border:1px solid #aab6c8;border-radius:10px;padding:10px 12px;background:#fff;color:#172944;font-weight:700}
+.site-header button[aria-pressed=true]{background:#dbeafe}
+.site-header a{display:inline-block;color:#fff;margin-top:4px;text-underline-offset:3px}
+.site-header :focus-visible{outline:3px solid #9ac7ff;outline-offset:2px}
 </style>
 <main>
-<header><strong data-copy="brand"></strong><nav><button id="zh" aria-pressed="true" lang="zh-Hant">中</button><button id="en" aria-pressed="false" lang="en">ENG</button></nav></header>
-<h1 class="destination-display"><canvas id="ledDisplay" aria-hidden="true"></canvas><span id="ledHeading" class="visually-hidden"></span></h1>
+<header class="site-header">
+ <div class="locale" role="group" aria-label="Language"><button id="zh" type="button" aria-pressed="true" lang="zh-Hant">中</button> <button id="en" type="button" aria-pressed="false" lang="en">ENG</button></div>
+ <h1 data-copy="brand">倫敦交通追蹤</h1>
+ <p data-copy="intro">睇倫敦巴士、Tube、Overground 同 Elizabeth line 嘅即時班次同位置。</p>
+ <a href="https://london-rail-journey-preview.jason-uk.chatgpt.site/" data-copy="journeys">倫敦交通行程</a>
+</header>
+<h2 class="destination-display"><canvas id="ledDisplay" aria-hidden="true"></canvas><span id="ledHeading" class="visually-hidden"></span></h2>
 <div class="choices" id="modePicker" role="group" aria-label="Transport">
 <button type="button" data-mode="bus" data-copy="busMode"></button>
 <button type="button" data-mode="tube">Tube</button>
@@ -134,7 +148,9 @@ let language='zh';
 try{if(localStorage.getItem('bus65-language')==='en')language='en'}catch{}
 const tr=(zh,en)=>language==='en'?en:zh;
 const copy={
- brand:['倫敦巴士','London Buses'],
+ brand:['倫敦交通追蹤','London Transport Tracker'],
+ intro:['睇倫敦巴士、Tube、Overground 同 Elizabeth line 嘅即時班次同位置。','Track live services on London buses, the Tube, Overground and Elizabeth line.'],
+ journeys:['倫敦交通行程','London Transport Journeys'],
  departures:['下一班開車','Next departures'],
  busMode:['巴士','Bus'],railLine:['路線','Line'],railStop:['車站','Station'],branch:['分支','Branch'],locate:['搵最近車站','Find nearest stop'],
  route:['巴士路線','Bus route'],searchLabel:['巴士號碼','Bus number'],search:['搜尋','Search'],title:['即時站序','Live stops'],direction:['行車方向','Direction'],boarding:['上車站','Boarding stop'],
@@ -216,7 +232,7 @@ function drawDestinationDisplay(){
 function applyLanguage(){
  drawDestinationDisplay();
  document.documentElement.lang=tr('zh-Hant','en');
- document.title=rail?lineName+' · '+tr('即時站序','Live stops'):tr(line+' 巴士 · 即時站序',line+' bus · Live stops');
+ document.title=tr(...copy.brand);
  showLocationNote();
  by('railStopSearch').placeholder=tr('搜尋車站','Search station');
  for(const el of document.querySelectorAll('[data-copy]'))el.textContent=tr(...copy[el.dataset.copy]);
