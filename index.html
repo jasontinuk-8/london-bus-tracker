@@ -104,7 +104,7 @@ header nav,.choices{display:flex;gap:5px;flex-wrap:wrap}.choices button[aria-pre
 <button type="button" data-mode="elizabeth-line">Elizabeth line</button>
 </div>
 <label id="railPicker" hidden><span data-copy="railLine"></span> <select id="railLine"></select></label>
-<label id="railStopPicker" hidden><span data-copy="railStop"></span> <input id="railStopSearch" type="search" list="railStopList" autocomplete="off"><datalist id="railStopList"></datalist><select id="railStop"></select></label>
+<label id="railStopPicker" hidden><span data-copy="railStop"></span> <input id="railStopSearch" type="search" list="railStopList" autocomplete="off"><datalist id="railStopList"></datalist><select id="railStop" hidden aria-hidden="true" tabindex="-1"></select></label>
 <label id="branchPicker" hidden><span data-copy="direction"></span> <select id="branch"></select></label>
 <button id="locate" type="button" data-copy="locate" disabled></button>
 <span id="locationNote" class="muted" role="status"></span>
@@ -251,7 +251,7 @@ const railLines={
 };
 const mode=Object.hasOwn(railLines,params.get('mode'))?params.get('mode'):'bus';
 const rail=mode!=='bus';
-const railStationName=name=>rail?String(name??'').replace(/\s+(?:Underground|Rail)?\s*Station$/i,'').trim():String(name??'');
+const railStationName=name=>rail?String(name??'').replace(/\s*\(Circle Line\)/i,'').replace(/\s+(?:Underground|Rail)?\s*Station$/i,'').trim():String(name??'');
 const railOptions=railLines[mode]??[];
 const selectedLine=railOptions.find(([id])=>id===params.get('line'))??railOptions[0];
 const line=rail?selectedLine[0]:validLine.test(requested)&&requested!=='NORTH'&&requested!=='SOUTH'?requested:'65';
