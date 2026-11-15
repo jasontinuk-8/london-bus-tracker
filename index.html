@@ -5,7 +5,7 @@
 <title>65 巴士 · Live route 65</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
-*{box-sizing:border-box}body{margin:0;background:#f4f6f1;color:#153128;font:15px system-ui,sans-serif}main{max-width:1080px;margin:auto;padding:22px 16px 36px}header{display:flex;justify-content:space-between;align-items:center;gap:12px;border-bottom:1px solid #d5e0d8;padding-bottom:15px}a{color:#205d47}h1{font-size:clamp(29px,5vw,48px);letter-spacing:-.045em;margin:16px 0}.num{display:inline-block;background:#123f30;color:white;padding:2px 12px;border-radius:9px;margin-right:8px}.controls{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}button,select{font:inherit;color:inherit;border:1px solid #c9d8ce;border-radius:9px;background:#fff;padding:8px 10px}button,select,summary{cursor:pointer}select{max-width:100%}.layout{display:grid;grid-template-columns:minmax(0,1.8fr) minmax(250px,1fr);gap:14px}.card{background:#fff;border:1px solid #d5e0d8;border-radius:17px;padding:13px;min-width:0}.diagram{padding:5px 4px 10px}svg{width:100%;display:block;background:#f9faf7;border-radius:14px}.dot,.vehicle{cursor:pointer}.dot:focus-visible,.vehicle:focus-visible{outline:2px solid #166b50}.labels{font-weight:650;fill:#25493b}.side h2{font-size:17px;margin:6px 0}.side p{margin:8px 0;line-height:1.5}.muted{color:#496456;font-size:13px}.status{padding:8px 10px;background:#edf4ef;border-radius:8px}.count{font-size:36px;font-weight:800;letter-spacing:-.06em}.list{list-style:none;padding:0;margin:6px 0}.list li{border-bottom:1px solid #e6ede7;padding:7px 0}.list button{width:100%;text-align:left}.stops{margin-top:14px}.stops ol{columns:2;padding-left:32px}.stops li{break-inside:avoid;margin:4px 0}.stops button{text-align:left;padding:4px 6px}.legend{margin:8px 10px 0}.source{margin:14px 2px 0}@media(max-width:690px){.layout{grid-template-columns:1fr}.stops ol{columns:1}}
+*{box-sizing:border-box}body{margin:0;background:#f4f6f1;color:#153128;font:15px system-ui,sans-serif}main{max-width:1080px;margin:auto;padding:22px 16px 36px}header{display:flex;justify-content:space-between;align-items:center;gap:12px;border-bottom:1px solid #d5e0d8;padding-bottom:15px}a{color:#205d47}h1{font-size:clamp(29px,5vw,48px);letter-spacing:-.045em;margin:16px 0}.num{display:inline-block;background:#123f30;color:white;padding:2px 12px;border-radius:9px;margin-right:8px}.controls{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}button,select,input[type="search"]{font:inherit;color:inherit;border:1px solid #c9d8ce;border-radius:9px;background:#fff;padding:8px 10px}button,select,summary{cursor:pointer}select{max-width:100%}.layout{display:grid;grid-template-columns:minmax(0,1.8fr) minmax(250px,1fr);gap:14px}.card{background:#fff;border:1px solid #d5e0d8;border-radius:17px;padding:13px;min-width:0}.diagram{padding:5px 4px 10px}svg{width:100%;display:block;background:#f9faf7;border-radius:14px}.dot,.vehicle{cursor:pointer}.dot:focus-visible,.vehicle:focus-visible{outline:2px solid #166b50}.labels{font-weight:650;fill:#25493b}.side h2{font-size:17px;margin:6px 0}.side p{margin:8px 0;line-height:1.5}.muted{color:#496456;font-size:13px}.status{padding:8px 10px;background:#edf4ef;border-radius:8px}.count{font-size:36px;font-weight:800;letter-spacing:-.06em}.list{list-style:none;padding:0;margin:6px 0}.list li{border-bottom:1px solid #e6ede7;padding:7px 0}.list button{width:100%;text-align:left}.stops{margin-top:14px}.stops ol{columns:2;padding-left:32px}.stops li{break-inside:avoid;margin:4px 0}.stops button{text-align:left;padding:4px 6px}.legend{margin:8px 10px 0}.source{margin:14px 2px 0}@media(max-width:690px){.layout{grid-template-columns:1fr}.stops ol{columns:1}}
 
 .layout{grid-template-columns:1fr}.layout .diagram{padding:12px}.track-heading{display:flex;align-items:center;gap:8px;margin:0;padding:8px 0;font-size:16px}.arrow{background:#134c38;color:white;border-radius:6px;padding:2px 8px}.viewport{overflow-x:auto;overscroll-behavior-inline:contain;border:1px solid #d5e0d8;border-radius:10px;background:#f8faf7}.track{display:flex;width:max-content;min-width:100%;padding:0 12px;position:relative}.track::before{content:'';position:absolute;inset:38px 56px auto;border-top:4px solid #a1cbb1}.track.inbound{flex-direction:row-reverse;border-top:1px solid #d5e0d8}.stop-cell{width:100px;flex:none;text-align:center;position:relative;padding:0 3px 10px}.stop-node{display:flex;align-items:center;justify-content:center;gap:1px;width:54px;height:54px;margin:12px auto 4px;border:3px solid transparent;border-radius:50%;background:transparent;padding:0;color:#144b38;font-weight:800}.stop-node.active{border-color:#11714e;background:#e5f5eb}.stop-node[data-selected=true]{box-shadow:0 0 0 2px #254c3e}.stop-node svg{width:17px;height:17px;background:none;border-radius:0}.station-label{background:transparent;border:0;padding:3px 0;width:100%;min-height:55px;font-size:12px;line-height:1.25;overflow-wrap:anywhere}.station-label[aria-pressed=true]{font-weight:750;color:#07543c}.station-letter{display:block;font-size:11px;color:#496456;margin-top:4px}.viewport:focus-visible{outline:2px solid #11714e}.legend{margin:8px 0}.side{display:grid;grid-template-columns:1fr 1fr;gap:6px 18px}.side .status{grid-column:1/-1}.side h2{margin-top:4px}@media(max-width:600px){.side{grid-template-columns:1fr}}
 
@@ -63,7 +63,7 @@ header nav,.choices{display:flex;gap:5px;flex-wrap:wrap}.choices button[aria-pre
 .route-map-popup{white-space:pre-line;max-height:280px;overflow:auto;min-width:210px}
 #routeMapDialog::backdrop{background:#0007}
 [hidden]{display:none!important}
-#modePicker{margin:12px 0}#railPicker,#railStopPicker,#branchPicker{margin-right:8px}#locationNote{margin-left:6px}
+#modePicker{margin:12px 0}#railPicker,#railStopPicker,#branchPicker{margin-right:8px}#railStopSearch{width:150px;margin:0 5px}#locationNote{margin-left:6px}
 .rail select{max-width:100%}
 .rail .bus-icon{background:#fff;border:2px solid #173b68;border-radius:7px 7px 4px 4px;width:26px;height:24px}
 .rail .bus-icon::before{background:#173b68;height:7px;box-shadow:none}
@@ -104,7 +104,7 @@ header nav,.choices{display:flex;gap:5px;flex-wrap:wrap}.choices button[aria-pre
 <button type="button" data-mode="elizabeth-line">Elizabeth line</button>
 </div>
 <label id="railPicker" hidden><span data-copy="railLine"></span> <select id="railLine"></select></label>
-<label id="railStopPicker" hidden><span data-copy="railStop"></span> <select id="railStop"></select></label>
+<label id="railStopPicker" hidden><span data-copy="railStop"></span> <input id="railStopSearch" type="search" list="railStopList" autocomplete="off"><datalist id="railStopList"></datalist><select id="railStop"></select></label>
 <label id="branchPicker" hidden><span data-copy="direction"></span> <select id="branch"></select></label>
 <button id="locate" type="button" data-copy="locate" disabled></button>
 <span id="locationNote" class="muted" role="status"></span>
@@ -218,6 +218,7 @@ function applyLanguage(){
  document.documentElement.lang=tr('zh-Hant','en');
  document.title=rail?lineName+' · '+tr('即時站序','Live stops'):tr(line+' 巴士 · 即時站序',line+' bus · Live stops');
  showLocationNote();
+ by('railStopSearch').placeholder=tr('搜尋車站','Search station');
  for(const el of document.querySelectorAll('[data-copy]'))el.textContent=tr(...copy[el.dataset.copy]);
  if(rail)refreshRailJourneyLabels();
  for(const el of document.querySelectorAll('[data-label]'))el.setAttribute('aria-label',tr(...copy[el.dataset.label]));
@@ -250,6 +251,7 @@ const railLines={
 };
 const mode=Object.hasOwn(railLines,params.get('mode'))?params.get('mode'):'bus';
 const rail=mode!=='bus';
+const railStationName=name=>rail?String(name??'').replace(/\s+(?:Underground|Rail)?\s*Station$/i,'').trim():String(name??'');
 const railOptions=railLines[mode]??[];
 const selectedLine=railOptions.find(([id])=>id===params.get('line'))??railOptions[0];
 const line=rail?selectedLine[0]:validLine.test(requested)&&requested!=='NORTH'&&requested!=='SOUTH'?requested:'65';
@@ -342,6 +344,13 @@ function fillRailDirectionPicker(){
  by('branch').value=String(selected);
  applyRailJourney(selected);
 }
+function selectRailStop(stopId){
+ if(![...railStop.options].some(option=>option.value===stopId))return;
+ railStop.value=stopId;
+ by('railStopSearch').value=railStop.selectedOptions[0]?.textContent??'';
+ try{localStorage.setItem('rail-'+line+'-stop',railStop.value)}catch{}
+ fillRailDirectionPicker();
+}
 function setupRailJourneyPicker(){
  if(!rail)return;
  const stations=new Map();
@@ -349,16 +358,21 @@ function setupRailJourneyPicker(){
    for(const stop of sequence.stopPoint)stations.set(stop.id,stop.name);
  const options=[...stations].sort((a,b)=>a[1].localeCompare(b[1]));
  railStop.replaceChildren(...options.map(([id,name])=>new Option(name,id)));
+ by('railStopList').replaceChildren(...options.map(([,name])=>new Option(name)));
  let saved;
  try{saved=localStorage.getItem('rail-'+line+'-stop')}catch{}
  const fallback=routes[direction]?.[0]?.[0]??options[0]?.[0];
  railStop.value=stations.has(saved)?saved:fallback;
+ by('railStopSearch').value=railStop.selectedOptions[0]?.textContent??'';
  by('railStopPicker').hidden=false;
  fillRailDirectionPicker();
 }
-railStop.onchange=()=>{
- try{localStorage.setItem('rail-'+line+'-stop',railStop.value)}catch{}
- fillRailDirectionPicker();
+railStop.onchange=()=>selectRailStop(railStop.value);
+by('railStopSearch').onchange=()=>{
+ const query=by('railStopSearch').value.trim().toLowerCase();
+ const matches=[...railStop.options].filter(option=>option.textContent.toLowerCase().includes(query));
+ const exact=matches.find(option=>option.textContent.toLowerCase()===query);
+ if(exact||matches.length===1)selectRailStop((exact??matches[0]).value);
 };
 by('branch').onchange=()=>applyRailJourney(Number(by('branch').value));
 function railRouteSequences(data, segments){
@@ -373,9 +387,9 @@ function railRouteSequences(data, segments){
    const key=naptanIds.join(',');
    if(stopPoint.some(stop=>!stop)||seen.has(key))continue;
    seen.add(key);
-   routes.push({stopPoint});
+   routes.push({stopPoint:stopPoint.map(stop=>({...stop,name:railStationName(stop.name)}))});
  }
- return routes.length?routes:segments;
+ return routes.length?routes:segments.map(sequence=>({...sequence,stopPoint:sequence.stopPoint.map(stop=>({...stop,name:railStationName(stop.name)}))}));
 }
 function applyBranch(dir){
  const stops=branches[dir]?.[branchIndex[dir]]?.stopPoint??[];
@@ -730,10 +744,13 @@ function renderFleet(vehicles,lookup){
  }
 }
 function onSelectedBranch(p){
- if(!rail||!p.destinationNaptanId||!branches[p.direction]?.length)return true;
- const options=branches[p.direction];
- const destinationIn=seq=>seq.stopPoint.some(stop=>stop.id===p.destinationNaptanId);
- return !options.some(destinationIn)||destinationIn(options[branchIndex[p.direction]]);
+ if(!rail||!branches[p.direction]?.length)return true;
+ const selectedRoute=branches[p.direction][branchIndex[p.direction]];
+ const destination=selectedRoute?.stopPoint.at(-1);
+ if(!destination)return true;
+ if(p.destinationNaptanId)return p.destinationNaptanId===destination.id;
+ if(p.destinationName)return railStationName(p.destinationName).toLowerCase()===railStationName(destination.name).toLowerCase();
+ return true;
 }
 const departureTimetables=new Map();
 const londonClock=new Intl.DateTimeFormat('en-GB',{
@@ -788,7 +805,7 @@ function renderDepartures(){
  const rows=data?scheduledDepartures(data,nextStop,destinationStop,new Date()):[];
  const labels=rows.map(({minutes,destination})=>{
    const time=[Math.floor(minutes/60)%24,minutes%60].map(value=>String(value).padStart(2,'0')).join(':');
-   return tr('按時間表 ','Scheduled ')+time+(minutes>=1440?tr('（聽日）',' (tomorrow)'):'')+(destination?' · '+destination:'');
+   return tr('按時間表 ','Scheduled ')+time+(minutes>=1440?tr('（聽日）',' (tomorrow)'):'')+(destination?' · '+railStationName(destination):'');
  });
  if(!labels.length)labels.push(loading?tr('讀取班次表…','Loading timetable…'):
    failed?tr('暫時讀取唔到班次表。','Timetable unavailable.'):
@@ -815,7 +832,7 @@ function render(){
  const list=by('arrivals');list.replaceChildren();
  if(!arrivals.length)item(list,usable?tr("TfL 暫時未有呢個站嘅預測。","No TfL predictions for this stop."):tr("等候即時到站資料。","Waiting for live arrivals."));
  else arrivals.slice(0,3).forEach((p,index)=>{
-   item(list,eta(p)+(rail?[p.destinationName,p.platformName].filter(Boolean).map(value=>' · '+value).join(''):''));
+   item(list,eta(p)+(rail?[railStationName(p.destinationName),p.platformName].filter(Boolean).map(value=>' · '+value).join(''):''));
    const previous=p.vehicleId?previousArrivals.get(arrivalKey(p)):undefined;
    const minutes=Math.round((Date.parse(p.expectedArrival)-previous)/60000);
    if(!(minutes>0))return;
