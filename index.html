@@ -386,11 +386,13 @@ function renderRailStopSuggestions(){
  list.hidden=!matches.length;
  search.setAttribute('aria-expanded',String(matches.length>0));
 }
-by('railStopSearch').onfocus=()=>{
+function clearCurrentRailStopSearch(){
  const search=by('railStopSearch');
  if(search.value===railStop.selectedOptions[0]?.textContent)search.value='';
  renderRailStopSuggestions();
-};
+}
+by('railStopSearch').onfocus=clearCurrentRailStopSearch;
+by('railStopSearch').onclick=clearCurrentRailStopSearch;
 by('railStopSearch').oninput=renderRailStopSuggestions;
 by('railStopSearch').onkeydown=event=>{
  if(event.key!=='Enter')return;
