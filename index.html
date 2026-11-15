@@ -115,9 +115,9 @@ body,.viewport,.status{background:#fff;color:#111}.card,.viewport{border-color:#
  <a href="https://london-rail-journey-preview.jason-uk.chatgpt.site/" data-copy="journeys">倫敦交通行程</a>
 </header>
 <h2 class="destination-display"><canvas id="ledDisplay" aria-hidden="true"></canvas><span id="ledHeading" class="visually-hidden"></span></h2>
-<div class="arrival-display" id="busArrivalDisplay">
- <canvas id="busArrivalLed" aria-hidden="true" hidden></canvas>
- <p class="arrival-copy" id="busArrivalCopy" role="status"></p>
+<div class="arrival-display" id="arrivalDisplay">
+ <canvas id="arrivalLed" aria-hidden="true" hidden></canvas>
+ <p class="arrival-copy" id="arrivalCopy" role="status"></p>
 </div>
 <div class="choices" id="modePicker" role="group" aria-label="Transport">
 <button type="button" data-mode="bus" data-copy="busMode"></button>
@@ -245,24 +245,23 @@ function drawDestinationDisplay(){
  ledFrame=requestAnimationFrame(scroll);
 }
 let arrivalFrame=0,arrivalLayoutKey='',arrivalMotionKey='',arrivalMotionStart=0;
-let nextBuses=[],busBoardStatus='loading';
-function drawBusArrival(){
- const board=by('busArrivalDisplay'),canvas=by('busArrivalLed'),copy=by('busArrivalCopy');
- board.hidden=rail;
- if(rail)return;
- const rows=nextBuses.map((bus,index)=>{
-  const route=String(bus.lineName||bus.lineId||line).toUpperCase();
-  const destination=bus.destinationName?.trim()||bus.towards?.trim();
+let nextArrivals=[],arrivalBoardStatus='loading';
+function drawArrivalDisplay(){
+ const board=by('arrivalDisplay'),canvas=by('arrivalLed'),copy=by('arrivalCopy');
+ const rows=nextArrivals.map((service,index)=>{
+  const route=rail?lineName:String(service.lineName||service.lineId||line).toUpperCase();
+  const destination=railStationName(service.destinationName?.trim()||service.towards?.trim());
   const rank=String(index+1);
   return {
    rank,route,target:ledText((destination||'--').toUpperCase()),
-   countdown:eta(bus,'en').toUpperCase().replace(' ',''),
-   label:[rank,route,destination||tr('目的地未有資料','Destination unavailable'),eta(bus)].join(' · ')
+   countdown:eta(service,'en').toUpperCase().replace(' ',''),
+   label:[rank,route,destination||tr('目的地未有資料','Destination unavailable'),eta(service)].join(' · ')
   };
  });
- const status=busBoardStatus==='empty'?tr('暫無巴士到站預測','No bus arrivals predicted'):
-  busBoardStatus==='unavailable'?tr('暫時未有即時資料','Live arrivals unavailable'):
-  tr('讀取巴士到站時間…','Loading bus arrivals…');
+ const status=arrivalBoardStatus==='empty'?(rail?tr('暫無列車到站預測','No train arrivals predicted'):
+  tr('暫無巴士到站預測','No bus arrivals predicted')):
+  arrivalBoardStatus==='unavailable'?tr('暫時未有即時資料','Live arrivals unavailable'):
+  rail?tr('讀取列車到站時間…','Loading train arrivals…'):tr('讀取巴士到站時間…','Loading bus arrivals…');
  const label=rows.length?rows.map(row=>row.label).join('\n'):status;
  if(copy.textContent!==label)copy.textContent=label;
  const width=board.clientWidth-24;
@@ -283,8 +282,14 @@ function drawBusArrival(){
  if(!rows.length||width<=0){showText();return}
  const pitch=Math.min(5,Math.max(3,width/108));
  const columns=Math.floor(width/pitch);
- const routeStart=9,destinationStart=routeStart+Math.max(...rows.map(row=>row.route.length))*6+3;
+ const routeStart=9;
  const countdownStart=columns-Math.max(5,...rows.map(row=>row.countdown.length))*6;
+ const routeLimit=rail?Math.max(3,Math.floor((countdownStart-routeStart-42)/6)):Infinity;
+ for(const row of rows){
+  const route=ledText(row.route.toUpperCase());
+  row.routeText=route.length>routeLimit?route.slice(0,routeLimit-1).trimEnd()+'.':route;
+ }
+ const destinationStart=routeStart+Math.max(...rows.map(row=>row.routeText.length))*6+3;
  const destinationWidth=countdownStart-destinationStart-3;
  for(const row of rows){
   row.cycle=row.target.length*6+12;
@@ -313,7 +318,7 @@ function drawBusArrival(){
    }else if(x>=destinationStart){
     text=x<destinationStart+destinationWidth?row.target:'';
     column=(x-destinationStart+offset)%row.cycle;
-   }else if(x>=routeStart){text=row.route;column=x-routeStart}
+   }else if(x>=routeStart){text=row.routeText;column=x-routeStart}
    const glyph=column>=0?ledGlyphs[text[Math.floor(column/6)]]:null,bit=column%6;
    for(let y=0;y<9;y++){
     const glyphRow=ledRows[y-1];
@@ -989,8 +994,8 @@ function renderDepartures(){
 }
 function render(){
  if(!stops.length){
-   busBoardStatus=stopsFailed?'unavailable':'loading';
-   drawBusArrival();
+   arrivalBoardStatus=stopsFailed?'unavailable':'loading';
+   drawArrivalDisplay();
    return;
  }
  renderDepartures();
@@ -1002,9 +1007,13 @@ function render(){
  const fresh=usable?predictions.filter(p=>Date.parse(p.expectedArrival)>Date.now()-15000).sort((a,b)=>Date.parse(a.expectedArrival)-Date.parse(b.expectedArrival)):[];
  const records=fresh.filter(p=>p.direction===direction&&lookup.has(p.naptanId)&&onSelectedBranch(p));
  const arrivals=records.filter(p=>p.naptanId===stopId);
- nextBuses=arrivals.slice(0,3);
- busBoardStatus=usable?'empty':failed||stale?'unavailable':'loading';
- drawBusArrival();
+ // Some rail predictions repeat the same arrival for multiple possible platforms.
+ const boardArrivals=rail?new Map(arrivals.map(p=>[
+  JSON.stringify([p.vehicleId,p.expectedArrival,p.destinationNaptanId||p.destinationName]),p
+ ])).values():arrivals;
+ nextArrivals=[...boardArrivals].slice(0,3);
+ arrivalBoardStatus=usable?'empty':failed||stale?'unavailable':'loading';
+ drawArrivalDisplay();
  by('selectedStop').textContent=name+(letter?' · '+letter:'');
  by('centerEta').textContent=arrivals.length?eta(arrivals[0]):usable?tr("暫無預測","No predictions"):failed||stale?tr("未有資料","No data"):tr("讀取中","Loading");
  by('status').textContent=usable?tr("TfL 更新","Updated ")+new Date(updated).toLocaleTimeString('en-GB',{timeZone:'Europe/London'})+(failed?tr(" · 更新失敗，顯示上次資料","Refresh failed, showing last update"):tr(" · 倫敦時間","London time")):stale?tr("資料已過期，等候更新","Data expired, awaiting refresh"):failed?tr("暫時連唔到 TfL，請重試。","TfL unavailable. Try refreshing."):tr("讀取 TfL 資料中…","Loading TfL data\u2026");
@@ -1288,7 +1297,7 @@ for(const route of ['65','371']){
 const official=document.querySelector('[data-copy="official"]');
 official.href=rail?'https://tfl.gov.uk/'+(mode==='tube'?'tube':mode==='overground'?'overground':'elizabeth-line')+'/':'https://tfl.gov.uk/bus/route/'+line+'/';
 copy.official=['TfL '+lineName+' 官方路線','Official TfL route '+lineName];
-function redrawLedDisplays(){drawDestinationDisplay();drawBusArrival()}
+function redrawLedDisplays(){drawDestinationDisplay();drawArrivalDisplay()}
 window.addEventListener('resize',redrawLedDisplays);
 reducedMotion.addEventListener?.('change',redrawLedDisplays);
 applyLanguage();
