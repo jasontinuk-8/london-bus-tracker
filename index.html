@@ -40,7 +40,7 @@ body,.viewport,.status{background:#fff;color:#111}.card,.viewport{border-color:#
 .arrival-display[hidden],.arrival-display canvas[hidden]{display:none}
 .arrival-display{margin:-8px 0 16px;padding:9px 12px;background:#171614;border:3px solid #33302b;border-radius:10px;box-shadow:inset 0 0 0 1px #080807;color:#ffbd4a}
 .arrival-display canvas{display:block;max-width:100%}
-.arrival-copy{font:600 14px/1.5 system-ui,sans-serif;margin:0}
+.arrival-copy{font:600 14px/1.5 system-ui,sans-serif;margin:0;white-space:pre-line}
 .destination-display canvas[hidden]{display:none}
 .destination-display canvas{display:block;max-width:100%;height:auto;flex:none}
 .visually-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
@@ -180,6 +180,11 @@ const ledGlyphs={
 
 const ledText=value=>value.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/’/g,"'");
 const ledRows=[0,1,1,2,3,3,4];
+const ledPause=3000;
+function marqueeColumn(elapsed,columns,speed){
+ const phase=elapsed%(ledPause+columns/speed);
+ return Math.floor(Math.max(0,phase-ledPause)*speed);
+}
 function drawDestinationDisplay(){
  cancelAnimationFrame(ledFrame);
  const terminal=destinations[direction] ?? (line==='65'
@@ -202,12 +207,12 @@ function drawDestinationDisplay(){
  if(!ctx){display.hidden=true;by('ledHeading').classList.remove('visually-hidden');return}
  ctx.scale(display.width/width,display.height/(rows*pitch));
  const stripWidth=text.length*6*pitch;
- const cycle=stripWidth+5*pitch;
+ const cycle=stripWidth/pitch+5;
  function paint(offset){
    ctx.clearRect(0,0,width,rows*pitch);
    for(let y=0;y<rows;y++){
      for(let x=0;x<columns;x++){
-       const column=(x+offset/pitch)%(cycle/pitch);
+       const column=(x+offset)%cycle;
        const glyph=ledGlyphs[text[Math.floor(column/6)]];
        const bit=column%6;
        const row=ledRows[y-1];
@@ -232,25 +237,33 @@ function drawDestinationDisplay(){
  let lastOffset=0;
  const start=performance.now();
  function scroll(now){
-   const offset=Math.floor(Math.max(0,now-start-850)*.042/pitch)*pitch;
-   if(offset!==lastOffset){paint(offset%cycle);lastOffset=offset}
+   const offset=marqueeColumn(now-start,cycle,.042/pitch);
+   if(offset!==lastOffset){paint(offset);lastOffset=offset}
    ledFrame=requestAnimationFrame(scroll);
  }
  paint(0);
  ledFrame=requestAnimationFrame(scroll);
 }
-let arrivalFrame=0,arrivalLayoutKey='',firstBus=null,busBoardStatus='loading';
+let arrivalFrame=0,arrivalLayoutKey='',arrivalMotionKey='',arrivalMotionStart=0;
+let nextBuses=[],busBoardStatus='loading';
 function drawBusArrival(){
  const board=by('busArrivalDisplay'),canvas=by('busArrivalLed'),copy=by('busArrivalCopy');
  board.hidden=rail;
  if(rail)return;
- const route=String(firstBus?.lineName||firstBus?.lineId||line).toUpperCase();
- const destination=firstBus?.destinationName?.trim()||firstBus?.towards?.trim();
- const time=firstBus?eta(firstBus):'';
+ const rows=nextBuses.map((bus,index)=>{
+  const route=String(bus.lineName||bus.lineId||line).toUpperCase();
+  const destination=bus.destinationName?.trim()||bus.towards?.trim();
+  const rank=String(index+1);
+  return {
+   rank,route,target:ledText((destination||'--').toUpperCase()),
+   countdown:eta(bus,'en').toUpperCase().replace(' ',''),
+   label:[rank,route,destination||tr('目的地未有資料','Destination unavailable'),eta(bus)].join(' · ')
+  };
+ });
  const status=busBoardStatus==='empty'?tr('暫無巴士到站預測','No bus arrivals predicted'):
   busBoardStatus==='unavailable'?tr('暫時未有即時資料','Live arrivals unavailable'):
   tr('讀取巴士到站時間…','Loading bus arrivals…');
- const label=firstBus?['1',route,destination||tr('目的地未有資料','Destination unavailable'),time].join(' · '):status;
+ const label=rows.length?rows.map(row=>row.label).join('\n'):status;
  if(copy.textContent!==label)copy.textContent=label;
  const width=board.clientWidth-24;
  const scale=window.devicePixelRatio||1;
@@ -258,23 +271,30 @@ function drawBusArrival(){
  if(key===arrivalLayoutKey)return;
  arrivalLayoutKey=key;
  cancelAnimationFrame(arrivalFrame);
+ const motionKey=JSON.stringify([width,reducedMotion.matches,rows.map(row=>row.target)]);
+ if(motionKey!==arrivalMotionKey){
+  arrivalMotionKey=motionKey;
+  arrivalMotionStart=performance.now();
+ }
  const showText=()=>{
   canvas.hidden=true;
   copy.classList.remove('visually-hidden');
  };
- if(!firstBus||width<=0){showText();return}
- const etaLabel=eta(firstBus,'en').toUpperCase().replace(' ','');
- const target=ledText((destination||'--').toUpperCase());
+ if(!rows.length||width<=0){showText();return}
  const pitch=Math.min(5,Math.max(3,width/108));
  const columns=Math.floor(width/pitch);
- const routeStart=9,destinationStart=routeStart+route.length*6+3;
- const etaStart=columns-etaLabel.length*6;
- const destinationWidth=etaStart-destinationStart-3;
- const scrolls=target.length*6>destinationWidth;
+ const routeStart=9,destinationStart=routeStart+Math.max(...rows.map(row=>row.route.length))*6+3;
+ const countdownStart=columns-Math.max(5,...rows.map(row=>row.countdown.length))*6;
+ const destinationWidth=countdownStart-destinationStart-3;
+ for(const row of rows){
+  row.cycle=row.target.length*6+12;
+  row.scrolls=row.target.length*6>destinationWidth;
+ }
+ const scrolls=rows.some(row=>row.scrolls);
  if(destinationWidth<6||(scrolls&&reducedMotion.matches)){showText();return}
  const ctx=canvas.getContext('2d');
  if(!ctx){showText();return}
- const height=9*pitch;
+ const height=(rows.length*9+rows.length-1)*pitch;
  canvas.style.width=columns*pitch+'px';
  canvas.style.height=height+'px';
  canvas.width=Math.round(columns*pitch*scale);
@@ -282,38 +302,45 @@ function drawBusArrival(){
  ctx.scale(canvas.width/(columns*pitch),canvas.height/height);
  canvas.hidden=false;
  copy.classList.add('visually-hidden');
- function paint(offset){
-  ctx.clearRect(0,0,columns*pitch,height);
+ function paintRow(row,index,offset){
+  const top=index*10;
+  ctx.clearRect(0,top*pitch,columns*pitch,9*pitch);
   for(let x=0;x<columns;x++){
-   let text='1',column=x;
-   if(x>=etaStart){text=etaLabel;column=x-etaStart}
-   else if(x>=destinationStart){
-    text=x<destinationStart+destinationWidth?target:'';
-    column=(x-destinationStart+offset)%(target.length*6+12);
-   }else if(x>=routeStart){text=route;column=x-routeStart}
-   const glyph=ledGlyphs[text[Math.floor(column/6)]],bit=column%6;
+   let text=row.rank,column=x;
+   if(x>=countdownStart){
+    text=row.countdown;
+    column=x-(columns-text.length*6);
+   }else if(x>=destinationStart){
+    text=x<destinationStart+destinationWidth?row.target:'';
+    column=(x-destinationStart+offset)%row.cycle;
+   }else if(x>=routeStart){text=row.route;column=x-routeStart}
+   const glyph=column>=0?ledGlyphs[text[Math.floor(column/6)]]:null,bit=column%6;
    for(let y=0;y<9;y++){
-    const row=ledRows[y-1];
-    const lit=glyph&&row!==undefined&&bit<5&&(parseInt(glyph.slice(row*2,row*2+2),16)&(16>>bit));
+    const glyphRow=ledRows[y-1];
+    const lit=glyph&&glyphRow!==undefined&&bit<5&&(parseInt(glyph.slice(glyphRow*2,glyphRow*2+2),16)&(16>>bit));
     ctx.fillStyle=lit?'#ffbd4a':'#44392b';
     if(lit){ctx.shadowColor='#ff9f21';ctx.shadowBlur=3*scale}
     ctx.beginPath();
-    ctx.arc((x+.5)*pitch,(y+.5)*pitch,pitch*.37,0,Math.PI*2);
+    ctx.arc((x+.5)*pitch,(top+y+.5)*pitch,pitch*.37,0,Math.PI*2);
     ctx.fill();
     ctx.shadowBlur=0;
    }
   }
  }
- paint(0);
- if(!scrolls)return;
- const start=performance.now();
- let lastOffset=0;
+ function paint(now){
+  rows.forEach((row,index)=>{
+   const offset=row.scrolls?marqueeColumn(now-arrivalMotionStart,row.cycle,.032/pitch):0;
+   if(offset===row.offset)return;
+   paintRow(row,index,offset);
+   row.offset=offset;
+  });
+ }
  function scroll(now){
-  const offset=Math.floor(Math.max(0,now-start-900)*.032/pitch);
-  if(offset!==lastOffset){paint(offset);lastOffset=offset}
+  paint(now);
   arrivalFrame=requestAnimationFrame(scroll);
  }
- arrivalFrame=requestAnimationFrame(scroll);
+ paint(performance.now());
+ if(scrolls)arrivalFrame=requestAnimationFrame(scroll);
 }
 function applyLanguage(){
  drawDestinationDisplay();
@@ -975,7 +1002,7 @@ function render(){
  const fresh=usable?predictions.filter(p=>Date.parse(p.expectedArrival)>Date.now()-15000).sort((a,b)=>Date.parse(a.expectedArrival)-Date.parse(b.expectedArrival)):[];
  const records=fresh.filter(p=>p.direction===direction&&lookup.has(p.naptanId)&&onSelectedBranch(p));
  const arrivals=records.filter(p=>p.naptanId===stopId);
- firstBus=arrivals[0]??null;
+ nextBuses=arrivals.slice(0,3);
  busBoardStatus=usable?'empty':failed||stale?'unavailable':'loading';
  drawBusArrival();
  by('selectedStop').textContent=name+(letter?' · '+letter:'');
