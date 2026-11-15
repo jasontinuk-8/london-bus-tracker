@@ -63,7 +63,7 @@ header nav,.choices{display:flex;gap:5px;flex-wrap:wrap}.choices button[aria-pre
 .route-map-popup{white-space:pre-line;max-height:280px;overflow:auto;min-width:210px}
 #routeMapDialog::backdrop{background:#0007}
 [hidden]{display:none!important}
-#modePicker{margin:12px 0}#railPicker,#railStopPicker,#branchPicker{margin-right:8px}#railStopSearch{width:150px;margin:0 5px}#locationNote{margin-left:6px}
+#modePicker{margin:12px 0}#railPicker,#branchPicker{margin-right:8px}#railStopPicker{position:relative;display:inline-flex;align-items:center;margin-right:8px}#railStopSearch{width:170px;margin:0 5px}#railStopSuggestions{position:absolute;z-index:100;left:42px;top:calc(100% + 4px);width:min(280px,80vw);max-height:260px;overflow:auto;padding:5px;background:#fff;border:1px solid #bfcac2;border-radius:10px;box-shadow:0 8px 24px #0003}#railStopSuggestions button{display:block;width:100%;padding:9px 10px;border:0;border-radius:7px;text-align:left;background:#fff}#railStopSuggestions button:hover,#railStopSuggestions button:focus{background:#edf4ef}#locationNote{margin-left:6px}
 .rail select{max-width:100%}
 .rail .bus-icon{background:#fff;border:2px solid #173b68;border-radius:7px 7px 4px 4px;width:26px;height:24px}
 .rail .bus-icon::before{background:#173b68;height:7px;box-shadow:none}
@@ -104,7 +104,7 @@ header nav,.choices{display:flex;gap:5px;flex-wrap:wrap}.choices button[aria-pre
 <button type="button" data-mode="elizabeth-line">Elizabeth line</button>
 </div>
 <label id="railPicker" hidden><span data-copy="railLine"></span> <select id="railLine"></select></label>
-<label id="railStopPicker" hidden><span data-copy="railStop"></span> <input id="railStopSearch" type="search" list="railStopList" autocomplete="off"><datalist id="railStopList"></datalist><select id="railStop" hidden aria-hidden="true" tabindex="-1"></select></label>
+<div id="railStopPicker" hidden><label for="railStopSearch"><span data-copy="railStop"></span></label><input id="railStopSearch" type="search" autocomplete="off" role="combobox" aria-autocomplete="list" aria-controls="railStopSuggestions"><div id="railStopSuggestions" role="listbox" hidden></div><select id="railStop" hidden aria-hidden="true" tabindex="-1"></select></div>
 <label id="branchPicker" hidden><span data-copy="direction"></span> <select id="branch"></select></label>
 <button id="locate" type="button" data-copy="locate" disabled></button>
 <span id="locationNote" class="muted" role="status"></span>
@@ -348,6 +348,8 @@ function selectRailStop(stopId){
  if(![...railStop.options].some(option=>option.value===stopId))return;
  railStop.value=stopId;
  by('railStopSearch').value=railStop.selectedOptions[0]?.textContent??'';
+ by('railStopSuggestions').hidden=true;
+ by('railStopSearch').setAttribute('aria-expanded','false');
  try{localStorage.setItem('rail-'+line+'-stop',railStop.value)}catch{}
  fillRailDirectionPicker();
 }
@@ -358,7 +360,6 @@ function setupRailJourneyPicker(){
    for(const stop of sequence.stopPoint)stations.set(stop.id,stop.name);
  const options=[...stations].sort((a,b)=>a[1].localeCompare(b[1]));
  railStop.replaceChildren(...options.map(([id,name])=>new Option(name,id)));
- by('railStopList').replaceChildren(...options.map(([,name])=>new Option(name)));
  let saved;
  try{saved=localStorage.getItem('rail-'+line+'-stop')}catch{}
  const fallback=routes[direction]?.[0]?.[0]??options[0]?.[0];
@@ -368,12 +369,41 @@ function setupRailJourneyPicker(){
  fillRailDirectionPicker();
 }
 railStop.onchange=()=>selectRailStop(railStop.value);
-by('railStopSearch').oninput=()=>{
- const query=by('railStopSearch').value.trim().toLowerCase();
- const matches=[...railStop.options].filter(option=>option.textContent.toLowerCase().includes(query));
- const exact=matches.find(option=>option.textContent.toLowerCase()===query);
- if(exact||matches.length===1)selectRailStop((exact??matches[0]).value);
+function renderRailStopSuggestions(){
+ const search=by('railStopSearch'),list=by('railStopSuggestions');
+ const query=search.value.trim().toLowerCase();
+ const matches=query?[...railStop.options].filter(option=>option.textContent.toLowerCase().includes(query)).slice(0,12):[];
+ list.replaceChildren(...matches.map(option=>{
+   const button=document.createElement('button');
+   button.type='button';
+   button.setAttribute('role','option');
+   button.dataset.stopId=option.value;
+   button.textContent=option.textContent;
+   button.onmousedown=event=>event.preventDefault();
+   button.onclick=()=>selectRailStop(option.value);
+   return button;
+ }));
+ list.hidden=!matches.length;
+ search.setAttribute('aria-expanded',String(matches.length>0));
+}
+by('railStopSearch').onfocus=()=>{
+ const search=by('railStopSearch');
+ if(search.value===railStop.selectedOptions[0]?.textContent)search.value='';
+ renderRailStopSuggestions();
 };
+by('railStopSearch').oninput=renderRailStopSuggestions;
+by('railStopSearch').onkeydown=event=>{
+ if(event.key!=='Enter')return;
+ const first=by('railStopSuggestions').querySelector('button');
+ if(!first)return;
+ event.preventDefault();
+ selectRailStop(first.dataset.stopId);
+};
+by('railStopSearch').onblur=()=>setTimeout(()=>{
+ by('railStopSuggestions').hidden=true;
+ by('railStopSearch').setAttribute('aria-expanded','false');
+ if(!by('railStopSearch').value.trim())by('railStopSearch').value=railStop.selectedOptions[0]?.textContent??'';
+},150);
 by('branch').onchange=()=>applyRailJourney(Number(by('branch').value));
 function railRouteSequences(data, segments){
  const stations=new Map(segments.flatMap(seq=>seq.stopPoint.map(stop=>[stop.id,stop])));
