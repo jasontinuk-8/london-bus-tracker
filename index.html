@@ -112,7 +112,7 @@ body,.viewport,.status{background:#fff;color:#111}.card,.viewport{border-color:#
  <div class="locale" role="group" aria-label="Language"><button id="zh" type="button" aria-pressed="true" lang="zh-Hant">中</button> <button id="en" type="button" aria-pressed="false" lang="en">ENG</button></div>
  <h1 data-copy="brand">倫敦交通追蹤</h1>
  <p data-copy="intro">睇倫敦巴士、Tube、Overground 同 Elizabeth line 嘅即時班次同位置。</p>
- <a href="https://london-rail-journey-preview.jason-uk.chatgpt.site/" data-copy="journeys">倫敦交通行程</a>
+ <a href="https://london-rail-journey-preview.jason-uk.chatgpt.site/" id="journeysLink" data-copy="journeys">倫敦交通行程</a>
 </header>
 <h2 class="destination-display"><canvas id="ledDisplay" aria-hidden="true"></canvas><span id="ledHeading" class="visually-hidden"></span></h2>
 <div class="arrival-display" id="arrivalDisplay">
@@ -376,6 +376,12 @@ for(const lang of ['zh','en'])by(lang).onclick=()=>{
 };
 const station=by('station');
 const params=new URLSearchParams(location.search);
+const returnLeg=params.get('returnLeg');
+if(returnLeg&&/^\d{1,3}$/.test(returnLeg)){
+ const link=by('journeysLink');
+ link.href+='#journey-leg-'+returnLeg;
+ copy.journeys=['返回行程','Back to journey'];
+}
 const requested=(params.get('bus')??params.get('route')??'65').trim().toUpperCase();
 const validLine=/^[A-Z0-9]{1,8}$/;
 const railLines={
