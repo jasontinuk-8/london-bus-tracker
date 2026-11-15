@@ -37,6 +37,10 @@ body,.viewport,.status{background:#fff;color:#111}.card,.viewport{border-color:#
 .bus-icon::after{content:'';position:absolute;bottom:-4px;left:3px;width:6px;height:6px;border-radius:50%;background:#222;box-shadow:19px 0 #222}
 .destination-display{display:flex;width:fit-content;max-width:100%;padding:9px 12px;background:#171614;border:3px solid #33302b;border-radius:10px;box-shadow:inset 0 0 0 1px #080807}
 .destination-display{color:#e2fb37}
+.arrival-display[hidden],.arrival-display canvas[hidden]{display:none}
+.arrival-display{margin:-8px 0 16px;padding:9px 12px;background:#171614;border:3px solid #33302b;border-radius:10px;box-shadow:inset 0 0 0 1px #080807;color:#ffbd4a}
+.arrival-display canvas{display:block;max-width:100%}
+.arrival-copy{font:600 14px/1.5 system-ui,sans-serif;margin:0}
 .destination-display canvas[hidden]{display:none}
 .destination-display canvas{display:block;max-width:100%;height:auto;flex:none}
 .visually-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
@@ -111,6 +115,10 @@ body,.viewport,.status{background:#fff;color:#111}.card,.viewport{border-color:#
  <a href="https://london-rail-journey-preview.jason-uk.chatgpt.site/" data-copy="journeys">倫敦交通行程</a>
 </header>
 <h2 class="destination-display"><canvas id="ledDisplay" aria-hidden="true"></canvas><span id="ledHeading" class="visually-hidden"></span></h2>
+<div class="arrival-display" id="busArrivalDisplay">
+ <canvas id="busArrivalLed" aria-hidden="true" hidden></canvas>
+ <p class="arrival-copy" id="busArrivalCopy" role="status"></p>
+</div>
 <div class="choices" id="modePicker" role="group" aria-label="Transport">
 <button type="button" data-mode="bus" data-copy="busMode"></button>
 <button type="button" data-mode="tube">Tube</button>
@@ -164,6 +172,14 @@ const copy={
 let stopsFailed=false;
 let ledFrame=0;
 const reducedMotion=matchMedia('(prefers-reduced-motion: reduce)');
+const ledGlyphs={
+ A:'0E111F1111',B:'1E111E111E',C:'0F1010100F',D:'1E1111111E',E:'1F101E101F',F:'1F101E1010',G:'0F1013110F',H:'11111F1111',I:'1F0404041F',J:'070101110E',K:'11121C1211',L:'101010101F',M:'111B151111',N:'1119151311',O:'0E1111110E',P:'1E111E1010',Q:'0E1111150F',R:'1E111E1211',S:'0F100E011E',T:'1F04040404',U:'111111110E',V:'1111110A04',W:'1111151B11',X:'110A040A11',Y:'110A040404',Z:'1F0204081F',
+ 0:'0E1115110E',1:'040C04040E',2:'0E1102041F',3:'1E0106011E',4:'0206121F02',5:'1F101E011E',6:'0E101E110E',7:'1F02040808',8:'0E110E110E',9:'0E110F010E',
+ '/':'0102040810','-':'00001F0000','·':'0000040000',"'":'0404000000','.':'0000000004'
+};
+
+const ledText=value=>value.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/’/g,"'");
+const ledRows=[0,1,1,2,3,3,4];
 function drawDestinationDisplay(){
  cancelAnimationFrame(ledFrame);
  const terminal=destinations[direction] ?? (line==='65'
@@ -173,12 +189,7 @@ function drawDestinationDisplay(){
  const label=terminal?heading+' '+terminal.toUpperCase():heading;
  by('ledHeading').textContent=label;
  const display=by('ledDisplay');
- const glyphs={
- A:'0E111F1111',B:'1E111E111E',C:'0F1010100F',D:'1E1111111E',E:'1F101E101F',F:'1F101E1010',G:'0F1013110F',H:'11111F1111',I:'1F0404041F',J:'070101110E',K:'11121C1211',L:'101010101F',M:'111B151111',N:'1119151311',O:'0E1111110E',P:'1E111E1010',Q:'0E1111150F',R:'1E111E1211',S:'0F100E011E',T:'1F04040404',U:'111111110E',V:'1111110A04',W:'1111151B11',X:'110A040A11',Y:'110A040404',Z:'1F0204081F',
- 0:'0E1115110E',1:'040C04040E',2:'0E1102041F',3:'1E0106011E',4:'0206121F02',5:'1F101E011E',6:'0E101E110E',7:'1F02040808',8:'0E110E110E',9:'0E110F010E',
- '/':'0102040810','-':'00001F0000','·':'0000040000',"'":'0404000000','.':'0000000004'
- };
- const text=label.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/’/g,"'");
+ const text=ledText(label);
  const pitch=5, rows=9;
  const columns=Math.floor((display.closest('main').clientWidth-54)/pitch);
  const width=Math.max(1,columns)*pitch;
@@ -190,7 +201,6 @@ function drawDestinationDisplay(){
  const ctx=display.getContext('2d');
  if(!ctx){display.hidden=true;by('ledHeading').classList.remove('visually-hidden');return}
  ctx.scale(display.width/width,display.height/(rows*pitch));
- const glyphRows=[0,1,1,2,3,3,4];
  const stripWidth=text.length*6*pitch;
  const cycle=stripWidth+5*pitch;
  function paint(offset){
@@ -198,9 +208,9 @@ function drawDestinationDisplay(){
    for(let y=0;y<rows;y++){
      for(let x=0;x<columns;x++){
        const column=(x+offset/pitch)%(cycle/pitch);
-       const glyph=glyphs[text[Math.floor(column/6)]];
+       const glyph=ledGlyphs[text[Math.floor(column/6)]];
        const bit=column%6;
-       const row=glyphRows[y-1];
+       const row=ledRows[y-1];
        const lit=glyph&&row!==undefined&&bit<5&&(parseInt(glyph.slice(row*2,row*2+2),16)&(16>>bit));
        ctx.fillStyle=lit?'#e2fb37':'#414637';
        if(lit){ctx.shadowColor='#c8ef32';ctx.shadowBlur=3*scale}
@@ -228,6 +238,82 @@ function drawDestinationDisplay(){
  }
  paint(0);
  ledFrame=requestAnimationFrame(scroll);
+}
+let arrivalFrame=0,arrivalLayoutKey='',firstBus=null,busBoardStatus='loading';
+function drawBusArrival(){
+ const board=by('busArrivalDisplay'),canvas=by('busArrivalLed'),copy=by('busArrivalCopy');
+ board.hidden=rail;
+ if(rail)return;
+ const route=String(firstBus?.lineName||firstBus?.lineId||line).toUpperCase();
+ const destination=firstBus?.destinationName?.trim()||firstBus?.towards?.trim();
+ const time=firstBus?eta(firstBus):'';
+ const status=busBoardStatus==='empty'?tr('暫無巴士到站預測','No bus arrivals predicted'):
+  busBoardStatus==='unavailable'?tr('暫時未有即時資料','Live arrivals unavailable'):
+  tr('讀取巴士到站時間…','Loading bus arrivals…');
+ const label=firstBus?['1',route,destination||tr('目的地未有資料','Destination unavailable'),time].join(' · '):status;
+ if(copy.textContent!==label)copy.textContent=label;
+ const width=board.clientWidth-24;
+ const scale=window.devicePixelRatio||1;
+ const key=JSON.stringify([label,width,scale,reducedMotion.matches]);
+ if(key===arrivalLayoutKey)return;
+ arrivalLayoutKey=key;
+ cancelAnimationFrame(arrivalFrame);
+ const showText=()=>{
+  canvas.hidden=true;
+  copy.classList.remove('visually-hidden');
+ };
+ if(!firstBus||width<=0){showText();return}
+ const etaLabel=eta(firstBus,'en').toUpperCase().replace(' ','');
+ const target=ledText((destination||'--').toUpperCase());
+ const pitch=Math.min(5,Math.max(3,width/108));
+ const columns=Math.floor(width/pitch);
+ const routeStart=9,destinationStart=routeStart+route.length*6+3;
+ const etaStart=columns-etaLabel.length*6;
+ const destinationWidth=etaStart-destinationStart-3;
+ const scrolls=target.length*6>destinationWidth;
+ if(destinationWidth<6||(scrolls&&reducedMotion.matches)){showText();return}
+ const ctx=canvas.getContext('2d');
+ if(!ctx){showText();return}
+ const height=9*pitch;
+ canvas.style.width=columns*pitch+'px';
+ canvas.style.height=height+'px';
+ canvas.width=Math.round(columns*pitch*scale);
+ canvas.height=Math.round(height*scale);
+ ctx.scale(canvas.width/(columns*pitch),canvas.height/height);
+ canvas.hidden=false;
+ copy.classList.add('visually-hidden');
+ function paint(offset){
+  ctx.clearRect(0,0,columns*pitch,height);
+  for(let x=0;x<columns;x++){
+   let text='1',column=x;
+   if(x>=etaStart){text=etaLabel;column=x-etaStart}
+   else if(x>=destinationStart){
+    text=x<destinationStart+destinationWidth?target:'';
+    column=(x-destinationStart+offset)%(target.length*6+12);
+   }else if(x>=routeStart){text=route;column=x-routeStart}
+   const glyph=ledGlyphs[text[Math.floor(column/6)]],bit=column%6;
+   for(let y=0;y<9;y++){
+    const row=ledRows[y-1];
+    const lit=glyph&&row!==undefined&&bit<5&&(parseInt(glyph.slice(row*2,row*2+2),16)&(16>>bit));
+    ctx.fillStyle=lit?'#ffbd4a':'#44392b';
+    if(lit){ctx.shadowColor='#ff9f21';ctx.shadowBlur=3*scale}
+    ctx.beginPath();
+    ctx.arc((x+.5)*pitch,(y+.5)*pitch,pitch*.37,0,Math.PI*2);
+    ctx.fill();
+    ctx.shadowBlur=0;
+   }
+  }
+ }
+ paint(0);
+ if(!scrolls)return;
+ const start=performance.now();
+ let lastOffset=0;
+ function scroll(now){
+  const offset=Math.floor(Math.max(0,now-start-900)*.032/pitch);
+  if(offset!==lastOffset){paint(offset);lastOffset=offset}
+  arrivalFrame=requestAnimationFrame(scroll);
+ }
+ arrivalFrame=requestAnimationFrame(scroll);
 }
 function applyLanguage(){
  drawDestinationDisplay();
@@ -740,7 +826,7 @@ function setDirection(scroll=true){
  choose(Math.max(0,savedIndex),scroll);
  renderTraffic();
 }
-function eta(p){const seconds=(Date.parse(p.expectedArrival)-Date.now())/1000;return seconds<=30?tr("即將到站","Due"):Math.ceil(seconds/60)+tr(" 分鐘"," min")}
+function eta(p,locale=language){const seconds=(Date.parse(p.expectedArrival)-Date.now())/1000;return seconds<=30?(locale==='en'?'Due':'即將到站'):Math.ceil(seconds/60)+(locale==='en'?' min':' 分鐘')}
 function arrivalClock(p){
  return new Date(p.expectedArrival).toLocaleTimeString('en-GB',{
    timeZone:'Europe/London',hour:'2-digit',minute:'2-digit'
@@ -875,7 +961,11 @@ function renderDepartures(){
  labels.forEach(label=>item(list,label));
 }
 function render(){
- if(!stops.length)return;
+ if(!stops.length){
+   busBoardStatus=stopsFailed?'unavailable':'loading';
+   drawBusArrival();
+   return;
+ }
  renderDepartures();
  by('stopSummary').textContent=tr('完整站序 · '+stops.length+' 個站','All stops · '+stops.length);
  const stale=updated&&Date.now()-updated>90000;
@@ -885,6 +975,9 @@ function render(){
  const fresh=usable?predictions.filter(p=>Date.parse(p.expectedArrival)>Date.now()-15000).sort((a,b)=>Date.parse(a.expectedArrival)-Date.parse(b.expectedArrival)):[];
  const records=fresh.filter(p=>p.direction===direction&&lookup.has(p.naptanId)&&onSelectedBranch(p));
  const arrivals=records.filter(p=>p.naptanId===stopId);
+ firstBus=arrivals[0]??null;
+ busBoardStatus=usable?'empty':failed||stale?'unavailable':'loading';
+ drawBusArrival();
  by('selectedStop').textContent=name+(letter?' · '+letter:'');
  by('centerEta').textContent=arrivals.length?eta(arrivals[0]):usable?tr("暫無預測","No predictions"):failed||stale?tr("未有資料","No data"):tr("讀取中","Loading");
  by('status').textContent=usable?tr("TfL 更新","Updated ")+new Date(updated).toLocaleTimeString('en-GB',{timeZone:'Europe/London'})+(failed?tr(" · 更新失敗，顯示上次資料","Refresh failed, showing last update"):tr(" · 倫敦時間","London time")):stale?tr("資料已過期，等候更新","Data expired, awaiting refresh"):failed?tr("暫時連唔到 TfL，請重試。","TfL unavailable. Try refreshing."):tr("讀取 TfL 資料中…","Loading TfL data\u2026");
@@ -1168,8 +1261,9 @@ for(const route of ['65','371']){
 const official=document.querySelector('[data-copy="official"]');
 official.href=rail?'https://tfl.gov.uk/'+(mode==='tube'?'tube':mode==='overground'?'overground':'elizabeth-line')+'/':'https://tfl.gov.uk/bus/route/'+line+'/';
 copy.official=['TfL '+lineName+' 官方路線','Official TfL route '+lineName];
-window.addEventListener('resize',drawDestinationDisplay);
-reducedMotion.addEventListener?.('change',drawDestinationDisplay);
+function redrawLedDisplays(){drawDestinationDisplay();drawBusArrival()}
+window.addEventListener('resize',redrawLedDisplays);
+reducedMotion.addEventListener?.('change',redrawLedDisplays);
 applyLanguage();
 if(!params.has('bus')&&params.get('route')==='sl7')location.replace('map.html?route=sl7');else start();
 </script>
