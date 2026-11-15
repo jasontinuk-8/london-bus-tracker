@@ -368,7 +368,7 @@ function setupRailJourneyPicker(){
  fillRailDirectionPicker();
 }
 railStop.onchange=()=>selectRailStop(railStop.value);
-by('railStopSearch').onchange=()=>{
+by('railStopSearch').oninput=()=>{
  const query=by('railStopSearch').value.trim().toLowerCase();
  const matches=[...railStop.options].filter(option=>option.textContent.toLowerCase().includes(query));
  const exact=matches.find(option=>option.textContent.toLowerCase()===query);
