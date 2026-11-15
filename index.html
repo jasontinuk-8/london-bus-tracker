@@ -367,6 +367,8 @@ function railRouteSequences(data, segments){
  const routes=[];
  for(const {naptanIds} of data.orderedLineRoutes??[]){
    if(!Array.isArray(naptanIds)||naptanIds.length<2)continue;
+   const endpoints=new Set([naptanIds[0],naptanIds.at(-1)]);
+   if(line==='district'&&endpoints.has('940GZZLURMD')&&endpoints.has('940GZZLUERC'))continue;
    const stopPoint=naptanIds.map(id=>stations.get(id));
    const key=naptanIds.join(',');
    if(stopPoint.some(stop=>!stop)||seen.has(key))continue;
