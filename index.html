@@ -359,7 +359,12 @@ function setupRailJourneyPicker(){
  for(const dir of directions)for(const sequence of branches[dir]??[])
    for(const stop of sequence.stopPoint)stations.set(stop.id,stop.name);
  const options=[...stations].sort((a,b)=>a[1].localeCompare(b[1]));
- railStop.replaceChildren(...options.map(([id,name])=>new Option(name,id)));
+ railStop.replaceChildren(...options.map(([id,name])=>{
+   const option=new Option(name,id);
+   const tubeCode=id.match(/^940GZZLU([A-Z0-9]{3})$/i);
+   option.dataset.code=tubeCode?.[1]?.toUpperCase()??'';
+   return option;
+ }));
  let saved;
  try{saved=localStorage.getItem('rail-'+line+'-stop')}catch{}
  const fallback=routes[direction]?.[0]?.[0]??options[0]?.[0];
@@ -372,13 +377,20 @@ railStop.onchange=()=>selectRailStop(railStop.value);
 function renderRailStopSuggestions(){
  const search=by('railStopSearch'),list=by('railStopSuggestions');
  const query=search.value.trim().toLowerCase();
- const matches=query?[...railStop.options].filter(option=>option.textContent.toLowerCase().includes(query)).slice(0,12):[];
+ const matches=query?[...railStop.options].map(option=>{
+   const name=option.textContent.toLowerCase();
+   const code=(option.dataset.code??'').toLowerCase();
+   const rank=name.startsWith(query)?0:code.startsWith(query)?1:name.includes(query)?2:code.includes(query)?3:99;
+   return {option,rank};
+ }).filter(match=>match.rank<99)
+   .sort((a,b)=>a.rank-b.rank||a.option.textContent.localeCompare(b.option.textContent))
+   .slice(0,12).map(match=>match.option):[];
  list.replaceChildren(...matches.map(option=>{
    const button=document.createElement('button');
    button.type='button';
    button.setAttribute('role','option');
    button.dataset.stopId=option.value;
-   button.textContent=option.textContent;
+   button.textContent=option.textContent+(option.dataset.code?' · '+option.dataset.code:'');
    button.onmousedown=event=>event.preventDefault();
    button.onclick=()=>selectRailStop(option.value);
    return button;
