@@ -109,7 +109,7 @@ body,.viewport,.status{background:#fff;color:#111}.card,.viewport{border-color:#
 
 .national-rail-form{display:flex;align-items:end;gap:8px;flex-wrap:wrap;margin-bottom:16px}
 .national-rail-form label{display:grid;gap:4px}
-.national-rail-form input{width:86px;text-transform:uppercase}
+.national-rail-form input{width:min(220px,75vw);font-size:16px}
 .national-rail-results{margin-bottom:16px}
 </style>
 <main>
@@ -133,8 +133,9 @@ body,.viewport,.status{background:#fff;color:#111}.card,.viewport{border-color:#
 <span id="locationNote" class="muted" role="status"></span>
 <form id="routeSearch" class="route-search"><label><span data-copy="searchLabel"></span><input id="routeInput" maxlength="8" placeholder="65, K3, SL7" required></label><button data-copy="search"></button><p id="searchNote" class="muted" role="status"></p></form><div class="controls"><div class="choices" id="routePicker" role="group" data-label="route"><button id="route65">65</button><button id="route371">371</button></div><div class="choices" role="group" data-label="direction"><button id="outbound" aria-pressed="true">Ealing Broadway</button><button id="inbound" aria-pressed="false">Kingston · Brook Street</button></div><label><span data-copy="boarding"></span> <select id="station"></select></label></div>
 <form id="nationalRailForm" class="national-rail-form" hidden>
- <label><span data-copy="nationalFrom">出發站代碼</span><input id="nationalFrom" type="search" value="KNG" placeholder="KNG" maxlength="3" pattern="[A-Za-z]{3}" autocomplete="off" required></label>
- <label><span data-copy="nationalTo">目的地代碼（選填）</span><input id="nationalTo" type="search" value="WAT" placeholder="WAT" maxlength="3" pattern="[A-Za-z]{3}" autocomplete="off"></label>
+ <label><span data-copy="nationalFrom">出發站</span><input id="nationalFrom" type="search" value="Kingston" list="nationalStations" placeholder="Kingston" autocomplete="off" required></label>
+ <label><span data-copy="nationalTo">目的地（選填）</span><input id="nationalTo" type="search" value="London Waterloo" list="nationalStations" placeholder="London Waterloo" autocomplete="off"></label>
+ <datalist id="nationalStations"></datalist>
  <button type="submit" data-copy="search">搜尋</button>
 </form>
 <h2 class="destination-display"><canvas id="ledDisplay" aria-hidden="true"></canvas><span id="ledHeading" class="visually-hidden"></span></h2>
@@ -146,7 +147,7 @@ body,.viewport,.status{background:#fff;color:#111}.card,.viewport{border-color:#
 <section id="nationalRailResults" class="card national-rail-results" hidden>
  <h2 id="nationalRailTitle"></h2>
  <ul id="nationalRailServices" class="list"></ul>
- <p class="muted"><a href="https://www.nationalrail.co.uk/stations/" data-copy="nationalCodes">查車站代碼</a> · <a href="https://www.nationalrail.co.uk/">National Rail</a></p>
+ <p class="muted"><a href="https://www.nationalrail.co.uk/">National Rail</a> · <a href="https://dataportal.orr.gov.uk/statistics/infrastructure-and-environment/rail-infrastructure-and-assets/table-6329-station-attributes-for-all-mainline-stations/" data-copy="nationalStationsSource">車站資料：ORR</a></p>
 </section>
 <div class="layout">
 <section class="card diagram">
@@ -177,8 +178,8 @@ const copy={
  intro:['睇倫敦巴士、Tube、Overground 同 Elizabeth line 嘅即時班次同位置。','Track live services on London buses, the Tube, Overground and Elizabeth line.'],
  journeys:['倫敦交通行程','London Transport Journeys'],
  departures:['下一班開車','Next departures'],
- nationalFrom:['出發站代碼','From station code'],nationalTo:['目的地代碼（選填）','To station code (optional)'],
- nationalCodes:['查車站代碼','Find station codes'],
+ nationalFrom:['出發站','From station'],nationalTo:['目的地（選填）','To station (optional)'],
+ nationalStationsSource:['車站資料：ORR','Station data: Office of Rail and Road'],
  busMode:['巴士','Bus'],railLine:['路線','Line'],railStop:['車站','Station'],branch:['分支','Branch'],locate:['搵最近車站','Find nearest stop'],
  route:['巴士路線','Bus route'],searchLabel:['巴士號碼','Bus number'],search:['搜尋','Search'],title:['即時站序','Live stops'],direction:['行車方向','Direction'],boarding:['上車站','Boarding stop'],
  out:['往 Ealing Broadway','Towards Ealing Broadway'],in:['往 Kingston · Brook Street','Towards Kingston · Brook Street'],
@@ -1473,10 +1474,31 @@ copy.official=['TfL '+lineName+' 官方路線','Official TfL route '+lineName];
 const nationalRailEndpoint='https://national-rail.jasontin-uk.workers.dev/departures';
 const nationalRailForm=by('nationalRailForm');
 const nationalRailCode=/^[A-Z]{3}$/;
+let nationalStations={KNG:'Kingston',WAT:'London Waterloo'};
+const normalizeStation=value=>value.normalize('NFD').replace(/\p{M}/gu,'').trim().toLowerCase().replace(/\s+/g,' ');
+function nationalStationCode(value){
+ const query=normalizeStation(value);
+ const exact=Object.entries(nationalStations).filter(([,name])=>normalizeStation(name)===query);
+ if(exact.length===1)return exact[0][0];
+ const code=query.toUpperCase();
+ if(nationalRailCode.test(code))return code;
+ const aliases=Object.entries(nationalStations).filter(([,name])=>
+  normalizeStation(name).replace(/^london /,'').replace(/ \(london\)$/,'')===query);
+ return aliases.length===1?aliases[0][0]:null;
+}
+async function loadNationalStations(){
+ try{
+  const response=await fetch('./national-rail-stations.json',{signal:AbortSignal.timeout(10000)});
+  if(response.ok)nationalStations=await response.json();
+ }catch{}
+ const options=Object.entries(nationalStations).sort((a,b)=>a[1].localeCompare(b[1]));
+ by('nationalStations').replaceChildren(...options.map(([code,name])=>new Option(code,name)));
+}
 let nationalRailRequest=0,nationalRailBoard=null,nationalRailQuery=null;
 function nationalRailStatusLabel(){
  if(arrivalBoardStatus==='unavailable')return tr('暫時讀取唔到 National Rail 班次','National Rail departures unavailable');
- if(arrivalBoardStatus==='invalid')return tr('請輸入兩個唔同嘅車站代碼','Enter two different station codes');
+ if(arrivalBoardStatus==='invalid')return tr('請輸入完整站名或喺清單揀站','Enter a full station name or choose a suggestion');
+ if(arrivalBoardStatus==='same-station')return tr('請揀兩個唔同嘅車站','Choose two different stations');
  if(arrivalBoardStatus==='empty')return tr('暫無相關開車班次','No departures found');
  return tr('讀取 National Rail 班次…','Loading National Rail departures…');
 }
@@ -1499,14 +1521,15 @@ function renderNationalRail(){
 async function loadNationalRail(refresh=false){
  const request=++nationalRailRequest;
  if(!refresh){
-  const from=by('nationalFrom').value.trim().toUpperCase();
-  const to=by('nationalTo').value.trim().toUpperCase();
+  const from=nationalStationCode(by('nationalFrom').value);
+  const destination=by('nationalTo').value.trim();
+  const to=destination?nationalStationCode(destination):'';
   nationalRailQuery={from,to};
   nationalRailBoard=null;
   nextArrivals=[];
-  if(!nationalRailCode.test(from)||(to&&(!nationalRailCode.test(to)||to===from))){
+  if(!from||(destination&&!to)||from===to){
    nationalRailQuery=null;
-   arrivalBoardStatus='invalid';
+   arrivalBoardStatus=from&&from===to?'same-station':'invalid';
    renderNationalRail();
    return;
   }
@@ -1539,6 +1562,7 @@ window.addEventListener('resize',redrawLedDisplays);
 reducedMotion.addEventListener?.('change',redrawLedDisplays);
 applyLanguage();
 if(nationalRail){
+ loadNationalStations();
  loadNationalRail();
  setInterval(()=>{if(!document.hidden&&nationalRailQuery)loadNationalRail(true)},30000);
 }
