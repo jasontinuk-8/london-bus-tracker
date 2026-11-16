@@ -39,28 +39,35 @@ export default {
       upstream.searchParams.set('filterCrs', to);
       upstream.searchParams.set('filterType', 'to');
     }
+    let stage = "fetch";
     try {
-      const response = await fetch(upstream, {
+      const response = await fetch(upstream.href, {
         headers: {
           Accept: 'application/json',
           'User-Agent': 'LondonTransportTracker/1.0',
           'x-apikey': env.DARWIN_API_KEY
         },
-        redirect: 'error',
+        redirect: 'manual',
         signal: AbortSignal.timeout(10000)
       });
+      if (response.status >= 300 && response.status < 400) {
+        return json({ error: 'National Rail returned an unexpected redirect', upstreamStatus: response.status }, 502, headers);
+      }
       if (response.status === 401 || response.status === 403) {
         return json({ error: 'Rail Data Marketplace rejected the Worker key' }, 502, headers);
       }
       if (!response.ok) {
-        return json({ error: 'National Rail could not return this departure board' }, 502, headers);
+        return json({ error: 'National Rail could not return this departure board', upstreamStatus: response.status }, 502, headers);
       }
+      stage = 'decode';
       const board = await response.json();
+      stage = 'board';
       if (board.crs !== from || board.areServicesAvailable === false) {
         return json({ error: 'National Rail departure information is unavailable' }, 502, headers);
       }
-      const departures = (board.trainServices ?? []).slice(0, 3).map(service => ({
-        destination: (service.destination ?? []).map(stop => stop.locationName).filter(Boolean).join(' / '),
+      const services = Array.isArray(board.trainServices) ? board.trainServices : [];
+      const departures = services.slice(0, 3).map(service => ({
+        destination: (Array.isArray(service.destination) ? service.destination : []).map(stop => stop.locationName).filter(Boolean).join(' / '),
         operator: service.operator ?? null,
         scheduled: service.std ?? null,
         expected: service.etd ?? null,
@@ -69,7 +76,7 @@ export default {
       }));
       return json({ station: board.locationName, from, to: to || null, departures }, 200, headers);
     } catch {
-      return json({ error: 'National Rail departure information is temporarily unavailable' }, 502, headers);
+      return json({ error: 'National Rail departure information is temporarily unavailable', stage }, 502, headers);
     }
   }
 };
