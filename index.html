@@ -106,6 +106,11 @@ body,.viewport,.status{background:#fff;color:#111}.card,.viewport{border-color:#
 .site-header button[aria-pressed=true]{background:#dbeafe}
 .site-header a{display:inline-block;color:#fff;margin-top:4px;text-underline-offset:3px}
 .site-header :focus-visible{outline:3px solid #9ac7ff;outline-offset:2px}
+
+.national-rail-form{display:flex;align-items:end;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+.national-rail-form label{display:grid;gap:4px}
+.national-rail-form input{width:86px;text-transform:uppercase}
+.national-rail-results{margin-bottom:16px}
 </style>
 <main>
 <header class="site-header">
@@ -119,6 +124,7 @@ body,.viewport,.status{background:#fff;color:#111}.card,.viewport{border-color:#
 <button type="button" data-mode="tube">Tube</button>
 <button type="button" data-mode="overground">Overground</button>
 <button type="button" data-mode="elizabeth-line">Elizabeth line</button>
+<button type="button" data-mode="national-rail">National Rail</button>
 </div>
 <label id="railPicker" hidden><span data-copy="railLine"></span> <select id="railLine"></select></label>
 <div id="railStopPicker" hidden><label id="railStopLabel" for="railStopSearch"><span data-copy="railStop"></span></label><input id="railStopSearch" type="search" autocomplete="off" role="combobox" aria-autocomplete="list" aria-controls="railStopSuggestions" aria-expanded="false"><button id="railStopToggle" type="button" aria-label="顯示全部車站" aria-controls="railStopSuggestions" aria-expanded="false" aria-haspopup="listbox">▾</button><div id="railStopSuggestions" role="listbox" aria-labelledby="railStopLabel" hidden></div><select id="railStop" hidden aria-hidden="true" tabindex="-1"></select></div>
@@ -126,12 +132,22 @@ body,.viewport,.status{background:#fff;color:#111}.card,.viewport{border-color:#
 <button id="locate" type="button" data-copy="locate" disabled></button>
 <span id="locationNote" class="muted" role="status"></span>
 <form id="routeSearch" class="route-search"><label><span data-copy="searchLabel"></span><input id="routeInput" maxlength="8" placeholder="65, K3, SL7" required></label><button data-copy="search"></button><p id="searchNote" class="muted" role="status"></p></form><div class="controls"><div class="choices" id="routePicker" role="group" data-label="route"><button id="route65">65</button><button id="route371">371</button></div><div class="choices" role="group" data-label="direction"><button id="outbound" aria-pressed="true">Ealing Broadway</button><button id="inbound" aria-pressed="false">Kingston · Brook Street</button></div><label><span data-copy="boarding"></span> <select id="station"></select></label></div>
+<form id="nationalRailForm" class="national-rail-form" hidden>
+ <label><span data-copy="nationalFrom">出發站代碼</span><input id="nationalFrom" type="search" value="KNG" placeholder="KNG" maxlength="3" pattern="[A-Za-z]{3}" autocomplete="off" required></label>
+ <label><span data-copy="nationalTo">目的地代碼（選填）</span><input id="nationalTo" type="search" value="WAT" placeholder="WAT" maxlength="3" pattern="[A-Za-z]{3}" autocomplete="off"></label>
+ <button type="submit" data-copy="search">搜尋</button>
+</form>
 <h2 class="destination-display"><canvas id="ledDisplay" aria-hidden="true"></canvas><span id="ledHeading" class="visually-hidden"></span></h2>
 <div class="arrival-display" id="arrivalDisplay">
  <p class="arrival-caption" id="arrivalCaption" hidden></p>
  <canvas id="arrivalLed" aria-hidden="true" hidden></canvas>
  <p class="arrival-copy" id="arrivalCopy" role="status"></p>
 </div>
+<section id="nationalRailResults" class="card national-rail-results" hidden>
+ <h2 id="nationalRailTitle"></h2>
+ <ul id="nationalRailServices" class="list"></ul>
+ <p class="muted"><a href="https://www.nationalrail.co.uk/stations/" data-copy="nationalCodes">查車站代碼</a> · <a href="https://www.nationalrail.co.uk/">National Rail</a></p>
+</section>
 <div class="layout">
 <section class="card diagram">
 <div class="route-map-actions"><button id="openRouteMap" data-copy="fullMap" disabled></button><a id="googleRoute" data-copy="googleTrip" target="_blank" rel="noopener" hidden></a></div><div class="route-columns"><div id="outboundPanel"><h2 class="track-heading"><span class="arrow" aria-hidden="true">↓</span> <span data-copy="out"></span></h2>
@@ -161,6 +177,8 @@ const copy={
  intro:['睇倫敦巴士、Tube、Overground 同 Elizabeth line 嘅即時班次同位置。','Track live services on London buses, the Tube, Overground and Elizabeth line.'],
  journeys:['倫敦交通行程','London Transport Journeys'],
  departures:['下一班開車','Next departures'],
+ nationalFrom:['出發站代碼','From station code'],nationalTo:['目的地代碼（選填）','To station code (optional)'],
+ nationalCodes:['查車站代碼','Find station codes'],
  busMode:['巴士','Bus'],railLine:['路線','Line'],railStop:['車站','Station'],branch:['分支','Branch'],locate:['搵最近車站','Find nearest stop'],
  route:['巴士路線','Bus route'],searchLabel:['巴士號碼','Bus number'],search:['搜尋','Search'],title:['即時站序','Live stops'],direction:['行車方向','Direction'],boarding:['上車站','Boarding stop'],
  out:['往 Ealing Broadway','Towards Ealing Broadway'],in:['往 Kingston · Brook Street','Towards Kingston · Brook Street'],
@@ -249,12 +267,20 @@ let arrivalFrame=0,arrivalLayoutKey='',arrivalMotionKey='',arrivalMotionStart=0;
 let nextArrivals=[],arrivalBoardStatus='loading';
 function drawArrivalDisplay(){
  const board=by('arrivalDisplay'),canvas=by('arrivalLed'),copy=by('arrivalCopy');
- const scheduled=nextArrivals[0]?.scheduled===true;
+ const scheduled=!nationalRail&&nextArrivals[0]?.scheduled===true;
  const caption=by('arrivalCaption');
- caption.hidden=!scheduled;
- caption.textContent=scheduled?tr('預定開車時間','Scheduled departures')+
+ caption.hidden=!scheduled&&!(nationalRail&&nextArrivals.length);
+ caption.textContent=nationalRail?tr('預定 · 目的地 · 即時','Scheduled · Destination · Live'):scheduled?tr('預定開車時間','Scheduled departures')+
   (nextArrivals.some(service=>service.minutes>=1440)?tr(' · * 聽日',' · * Tomorrow'):''):'';
  const rows=nextArrivals.map((service,index)=>{
+  if(nationalRail)return {
+   rank:String(index+1),route:service.scheduled||'--:--',
+   target:ledText((service.destination||'--').toUpperCase()),
+   countdown:service.cancelled?'CANC':/^on time$/i.test(service.expected??'')?
+    service.scheduled||'--:--':/^\d{2}:\d{2}$/.test(service.expected??'')?service.expected:
+    /^delayed$/i.test(service.expected??'')?'DLY':'--:--',
+   label:nationalRailServiceLabel(service)
+  };
   const route=rail?lineName:String(service.lineName||service.lineId||line).toUpperCase();
   const destination=railStationName(service.destinationName?.trim()||service.towards?.trim());
   const rank=String(index+1);
@@ -265,7 +291,7 @@ function drawArrivalDisplay(){
      service.scheduled?scheduledDepartureLabel(service.minutes):eta(service)].join(' · ')
   };
  });
- const status=arrivalBoardStatus==='schedule-loading'?tr('讀取總站開車時間…','Loading terminus departures…'):
+ const status=nationalRail?nationalRailStatusLabel():arrivalBoardStatus==='schedule-loading'?tr('讀取總站開車時間…','Loading terminus departures…'):
   arrivalBoardStatus==='empty'?(rail?tr('暫無列車到站預測','No train arrivals predicted'):
   tr('暫無巴士到站預測','No bus arrivals predicted')):
   arrivalBoardStatus==='unavailable'?tr('暫時未有即時資料','Live arrivals unavailable'):
@@ -292,7 +318,7 @@ function drawArrivalDisplay(){
  const columns=Math.floor(width/pitch);
  const routeStart=9;
  const countdownStart=columns-Math.max(5,...rows.map(row=>row.countdown.length))*6;
- const routeLimit=rail?Math.max(3,Math.floor((countdownStart-routeStart-42)/6)):Infinity;
+ const routeLimit=nationalRail?Infinity:rail?Math.max(3,Math.floor((countdownStart-routeStart-42)/6)):Infinity;
  for(const row of rows){
   const route=ledText(row.route.toUpperCase());
   row.routeText=route.length>routeLimit?route.slice(0,routeLimit-1).trimEnd()+'.':route;
@@ -356,16 +382,17 @@ function drawArrivalDisplay(){
  if(scrolls)arrivalFrame=requestAnimationFrame(scroll);
 }
 function applyLanguage(){
- drawDestinationDisplay();
+ if(!nationalRail)drawDestinationDisplay();
  document.documentElement.lang=tr('zh-Hant','en');
  document.title=tr(...copy.brand);
  showLocationNote();
  by('railStopSearch').placeholder=tr('搜尋車站','Search station');
  by('railStopToggle').setAttribute('aria-label',tr('顯示全部車站','Show all stations'));
  for(const el of document.querySelectorAll('[data-copy]'))el.textContent=tr(...copy[el.dataset.copy]);
+ for(const lang of ['zh','en'])by(lang).setAttribute('aria-pressed',String(lang===language));
+ if(nationalRail){renderNationalRail();return}
  if(rail)refreshRailJourneyLabels();
  for(const el of document.querySelectorAll('[data-label]'))el.setAttribute('aria-label',tr(...copy[el.dataset.label]));
- for(const lang of ['zh','en'])by(lang).setAttribute('aria-pressed',String(lang===language));
  if(!routes){
    by('status').textContent=stopsFailed?tr('未能載入站序，請重新整理頁面。','Unable to load stops. Reload the page.'):tr('讀取 TfL 資料中…','Loading TfL data…');
    by('selectedStop').textContent=tr('到站預測','Arrivals');
@@ -399,8 +426,9 @@ const railLines={
  overground:[['lioness','Lioness'],['mildmay','Mildmay'],['windrush','Windrush'],['weaver','Weaver'],['suffragette','Suffragette'],['liberty','Liberty']],
  'elizabeth-line':[['elizabeth','Elizabeth line']]
 };
-const mode=Object.hasOwn(railLines,params.get('mode'))?params.get('mode'):'bus';
-const rail=mode!=='bus';
+const nationalRail=params.get('mode')==='national-rail';
+const mode=nationalRail?'national-rail':Object.hasOwn(railLines,params.get('mode'))?params.get('mode'):'bus';
+const rail=Object.hasOwn(railLines,mode);
 const railStationName=name=>rail?String(name??'').replace(/\s*\(Circle Line\)/i,'').replace(/\s+(?:Underground|Rail)?\s*Station$/i,'').trim():String(name??'');
 const railOptions=railLines[mode]??[];
 const selectedLine=railOptions.find(([id])=>id===params.get('line'))??railOptions[0];
@@ -428,12 +456,19 @@ for(const button of document.querySelectorAll('[data-mode]')){
  button.setAttribute('aria-pressed',String(button.dataset.mode===mode));
  button.onclick=()=>{if(button.dataset.mode!==mode)selectMode(button.dataset.mode)};
 }
-by('routeSearch').hidden=rail;
-by('routePicker').hidden=rail;
+by('routeSearch').hidden=rail||nationalRail;
+by('nationalRailForm').hidden=!nationalRail;
+by('nationalRailResults').hidden=!nationalRail;
+if(nationalRail){
+ for(const selector of ['.layout','.stops','.source','.destination-display','#locate','#locationNote']){
+  document.querySelector(selector).hidden=true;
+ }
+}
+by('routePicker').hidden=rail||nationalRail;
 by('railPicker').hidden=!rail;
 by('railStopPicker').hidden=true;
-by('outbound').parentElement.hidden=rail;
-station.parentElement.hidden=rail;
+by('outbound').parentElement.hidden=rail||nationalRail;
+station.parentElement.hidden=rail||nationalRail;
 for(const [id,name] of railOptions)by('railLine').add(new Option(name,id));
 by('railLine').value=rail?line:'';
 by('railLine').onchange=()=>selectMode(mode,by('railLine').value);
@@ -1435,10 +1470,79 @@ for(const route of ['65','371']){
 const official=document.querySelector('[data-copy="official"]');
 official.href=rail?'https://tfl.gov.uk/'+(mode==='tube'?'tube':mode==='overground'?'overground':'elizabeth-line')+'/':'https://tfl.gov.uk/bus/route/'+line+'/';
 copy.official=['TfL '+lineName+' 官方路線','Official TfL route '+lineName];
-function redrawLedDisplays(){drawDestinationDisplay();drawArrivalDisplay()}
+const nationalRailEndpoint='https://national-rail.jasontin-uk.workers.dev/departures';
+const nationalRailForm=by('nationalRailForm');
+const nationalRailCode=/^[A-Z]{3}$/;
+let nationalRailRequest=0,nationalRailBoard=null,nationalRailQuery=null;
+function nationalRailStatusLabel(){
+ if(arrivalBoardStatus==='unavailable')return tr('暫時讀取唔到 National Rail 班次','National Rail departures unavailable');
+ if(arrivalBoardStatus==='invalid')return tr('請輸入兩個唔同嘅車站代碼','Enter two different station codes');
+ if(arrivalBoardStatus==='empty')return tr('暫無相關開車班次','No departures found');
+ return tr('讀取 National Rail 班次…','Loading National Rail departures…');
+}
+function nationalRailServiceLabel(service){
+ const expected=service.cancelled?tr('取消','Cancelled'):
+  /^on time$/i.test(service.expected??'')?tr('準時','On time'):
+  /^delayed$/i.test(service.expected??'')?tr('延誤','Delayed'):
+  service.expected||tr('未有即時時間','No live time');
+ return [service.destination||tr('目的地未公布','Destination to be confirmed'),
+  tr('預定 ','Scheduled ')+(service.scheduled||'—'),expected,
+  service.platform?tr('月台 ','Platform ')+service.platform:tr('月台未公布','Platform to be confirmed')].join(' · ');
+}
+function renderNationalRail(){
+ drawArrivalDisplay();
+ by('nationalRailTitle').textContent=nationalRailBoard?.station||'National Rail';
+ const list=by('nationalRailServices');
+ list.replaceChildren();
+ for(const service of nextArrivals)item(list,nationalRailServiceLabel(service));
+}
+async function loadNationalRail(refresh=false){
+ const request=++nationalRailRequest;
+ if(!refresh){
+  const from=by('nationalFrom').value.trim().toUpperCase();
+  const to=by('nationalTo').value.trim().toUpperCase();
+  nationalRailQuery={from,to};
+  nationalRailBoard=null;
+  nextArrivals=[];
+  if(!nationalRailCode.test(from)||(to&&(!nationalRailCode.test(to)||to===from))){
+   nationalRailQuery=null;
+   arrivalBoardStatus='invalid';
+   renderNationalRail();
+   return;
+  }
+  arrivalBoardStatus='loading';
+  renderNationalRail();
+ }
+ const {from,to}=nationalRailQuery;
+ try{
+  const url=new URL(nationalRailEndpoint);
+  url.searchParams.set('from',from);
+  if(to)url.searchParams.set('to',to);
+  const response=await fetch(url,{signal:AbortSignal.timeout(14000)});
+  if(!response.ok)throw Error(response.status);
+  const board=await response.json();
+  if(!Array.isArray(board.departures))throw Error('Invalid board');
+  if(request!==nationalRailRequest)return;
+  nationalRailBoard=board;
+  nextArrivals=board.departures.slice(0,3);
+  arrivalBoardStatus='empty';
+ }catch{
+  if(request!==nationalRailRequest)return;
+  nextArrivals=[];
+  arrivalBoardStatus='unavailable';
+ }
+ renderNationalRail();
+}
+nationalRailForm.onsubmit=event=>{event.preventDefault();loadNationalRail()};
+function redrawLedDisplays(){if(!nationalRail)drawDestinationDisplay();drawArrivalDisplay()}
 window.addEventListener('resize',redrawLedDisplays);
 reducedMotion.addEventListener?.('change',redrawLedDisplays);
 applyLanguage();
-if(!params.has('bus')&&params.get('route')==='sl7')location.replace('map.html?route=sl7');else start();
+if(nationalRail){
+ loadNationalRail();
+ setInterval(()=>{if(!document.hidden&&nationalRailQuery)loadNationalRail(true)},30000);
+}
+else if(!params.has('bus')&&params.get('route')==='sl7')location.replace('map.html?route=sl7');
+else start();
 </script>
 </html>
