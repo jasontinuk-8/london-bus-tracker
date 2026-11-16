@@ -67,7 +67,7 @@ body,.viewport,.status{background:#fff;color:#111}.card,.viewport{border-color:#
 .route-map-popup{white-space:pre-line;max-height:280px;overflow:auto;min-width:210px}
 #routeMapDialog::backdrop{background:#0007}
 [hidden]{display:none!important}
-#modePicker{margin:12px 0}#railPicker,#branchPicker{margin-right:8px}#railStopPicker{position:relative;display:inline-flex;align-items:center;margin-right:8px}#railStopSearch{width:170px;margin:0 5px}#railStopSuggestions{position:absolute;z-index:100;left:42px;top:calc(100% + 4px);width:min(280px,80vw);max-height:260px;overflow:auto;padding:5px;background:#fff;border:1px solid #bfcac2;border-radius:10px;box-shadow:0 8px 24px #0003}#railStopSuggestions button{display:block;width:100%;padding:9px 10px;border:0;border-radius:7px;text-align:left;background:#fff}#railStopSuggestions button:hover,#railStopSuggestions button:focus{background:#edf4ef}#locationNote{margin-left:6px}
+#modePicker{margin:12px 0}#railPicker,#branchPicker{margin-right:8px}#railStopPicker{position:relative;display:inline-flex;align-items:center;margin-right:8px}#railStopSearch{width:170px;margin:0 5px}#railStopToggle{min-width:44px;min-height:44px}#railStopSuggestions{position:absolute;z-index:100;inset-inline:0;top:calc(100% + 4px);max-height:260px;overscroll-behavior:contain;overflow:auto;padding:5px;background:#fff;border:1px solid #bfcac2;border-radius:10px;box-shadow:0 8px 24px #0003}#railStopSuggestions button{display:block;width:100%;padding:9px 10px;border:0;border-radius:7px;text-align:left;background:#fff}#railStopSuggestions button:hover,#railStopSuggestions button[aria-selected=true]{background:#edf4ef}#locationNote{margin-left:6px}
 .rail select{max-width:100%}
 .rail .bus-icon{background:#fff;border:2px solid #173b68;border-radius:7px 7px 4px 4px;width:26px;height:24px}
 .rail .bus-icon::before{background:#173b68;height:7px;box-shadow:none}
@@ -121,7 +121,7 @@ body,.viewport,.status{background:#fff;color:#111}.card,.viewport{border-color:#
 <button type="button" data-mode="elizabeth-line">Elizabeth line</button>
 </div>
 <label id="railPicker" hidden><span data-copy="railLine"></span> <select id="railLine"></select></label>
-<div id="railStopPicker" hidden><label for="railStopSearch"><span data-copy="railStop"></span></label><input id="railStopSearch" type="search" autocomplete="off" role="combobox" aria-autocomplete="list" aria-controls="railStopSuggestions"><div id="railStopSuggestions" role="listbox" hidden></div><select id="railStop" hidden aria-hidden="true" tabindex="-1"></select></div>
+<div id="railStopPicker" hidden><label id="railStopLabel" for="railStopSearch"><span data-copy="railStop"></span></label><input id="railStopSearch" type="search" autocomplete="off" role="combobox" aria-autocomplete="list" aria-controls="railStopSuggestions" aria-expanded="false"><button id="railStopToggle" type="button" aria-label="顯示全部車站" aria-controls="railStopSuggestions" aria-expanded="false" aria-haspopup="listbox">▾</button><div id="railStopSuggestions" role="listbox" aria-labelledby="railStopLabel" hidden></div><select id="railStop" hidden aria-hidden="true" tabindex="-1"></select></div>
 <label id="branchPicker" hidden><span data-copy="direction"></span> <select id="branch"></select></label>
 <button id="locate" type="button" data-copy="locate" disabled></button>
 <span id="locationNote" class="muted" role="status"></span>
@@ -353,6 +353,7 @@ function applyLanguage(){
  document.title=tr(...copy.brand);
  showLocationNote();
  by('railStopSearch').placeholder=tr('搜尋車站','Search station');
+ by('railStopToggle').setAttribute('aria-label',tr('顯示全部車站','Show all stations'));
  for(const el of document.querySelectorAll('[data-copy]'))el.textContent=tr(...copy[el.dataset.copy]);
  if(rail)refreshRailJourneyLabels();
  for(const el of document.querySelectorAll('[data-label]'))el.setAttribute('aria-label',tr(...copy[el.dataset.label]));
@@ -489,8 +490,7 @@ function selectRailStop(stopId){
  if(![...railStop.options].some(option=>option.value===stopId))return;
  railStop.value=stopId;
  by('railStopSearch').value=railStop.selectedOptions[0]?.textContent??'';
- by('railStopSuggestions').hidden=true;
- by('railStopSearch').setAttribute('aria-expanded','false');
+ closeRailStopSuggestions();
  try{localStorage.setItem('rail-'+line+'-stop',railStop.value)}catch{}
  fillRailDirectionPicker();
 }
@@ -515,50 +515,91 @@ function setupRailJourneyPicker(){
  fillRailDirectionPicker();
 }
 railStop.onchange=()=>selectRailStop(railStop.value);
-function renderRailStopSuggestions(){
- const search=by('railStopSearch'),list=by('railStopSuggestions');
- const query=search.value.trim().toLowerCase();
- const matches=query?[...railStop.options].map(option=>{
+const railStopSearch=by('railStopSearch'),railStopToggle=by('railStopToggle');
+const railStopSuggestions=by('railStopSuggestions'),railStopPicker=by('railStopPicker');
+let showingAllRailStops=false;
+function setRailStopExpanded(expanded){
+ railStopSuggestions.hidden=!expanded;
+ railStopSearch.setAttribute('aria-expanded',String(expanded));
+ railStopToggle.setAttribute('aria-expanded',String(expanded));
+ railStopSearch.removeAttribute('aria-activedescendant');
+}
+function closeRailStopSuggestions(){
+ setRailStopExpanded(false);
+ if(!railStopSearch.value.trim())railStopSearch.value=railStop.selectedOptions[0]?.textContent??'';
+}
+function renderRailStopSuggestions(all=false){
+ const query=all?'':railStopSearch.value.trim().toLowerCase();
+ showingAllRailStops=!query;
+ const options=[...railStop.options];
+ const matches=query?options.map(option=>{
    const name=option.textContent.toLowerCase();
    const code=(option.dataset.code??'').toLowerCase();
    const rank=name.startsWith(query)?0:code.startsWith(query)?1:name.includes(query)?2:code.includes(query)?3:99;
    return {option,rank};
  }).filter(match=>match.rank<99)
    .sort((a,b)=>a.rank-b.rank||a.option.textContent.localeCompare(b.option.textContent))
-   .slice(0,12).map(match=>match.option):[];
- list.replaceChildren(...matches.map(option=>{
+   .slice(0,12).map(match=>match.option):options;
+ railStopSuggestions.replaceChildren(...matches.map((option,index)=>{
    const button=document.createElement('button');
    button.type='button';
+   button.id='rail-stop-option-'+index;
+   button.tabIndex=-1;
    button.setAttribute('role','option');
+   button.setAttribute('aria-selected','false');
    button.dataset.stopId=option.value;
    button.textContent=option.textContent+(option.dataset.code?' · '+option.dataset.code:'');
    button.onmousedown=event=>event.preventDefault();
    button.onclick=()=>selectRailStop(option.value);
    return button;
  }));
- list.hidden=!matches.length;
- search.setAttribute('aria-expanded',String(matches.length>0));
+ railStopSuggestions.scrollTop=0;
+ setRailStopExpanded(matches.length>0);
 }
 function clearCurrentRailStopSearch(){
- const search=by('railStopSearch');
- if(search.value===railStop.selectedOptions[0]?.textContent)search.value='';
+ if(railStopSearch.value===railStop.selectedOptions[0]?.textContent)railStopSearch.value='';
  renderRailStopSuggestions();
 }
-by('railStopSearch').onfocus=clearCurrentRailStopSearch;
-by('railStopSearch').onclick=clearCurrentRailStopSearch;
-by('railStopSearch').oninput=renderRailStopSuggestions;
-by('railStopSearch').onkeydown=event=>{
- if(event.key!=='Enter')return;
- const first=by('railStopSuggestions').querySelector('button');
- if(!first)return;
- event.preventDefault();
- selectRailStop(first.dataset.stopId);
+railStopSearch.onfocus=clearCurrentRailStopSearch;
+railStopSearch.onclick=()=>{
+ if(railStopSuggestions.hidden)clearCurrentRailStopSearch();
 };
-by('railStopSearch').onblur=()=>setTimeout(()=>{
- by('railStopSuggestions').hidden=true;
- by('railStopSearch').setAttribute('aria-expanded','false');
- if(!by('railStopSearch').value.trim())by('railStopSearch').value=railStop.selectedOptions[0]?.textContent??'';
-},150);
+railStopSearch.oninput=()=>renderRailStopSuggestions();
+railStopToggle.onmousedown=event=>event.preventDefault();
+railStopToggle.onclick=()=>{
+ if(railStopSuggestions.hidden||!showingAllRailStops)renderRailStopSuggestions(true);
+ else closeRailStopSuggestions();
+};
+railStopPicker.onkeydown=event=>{
+ if(event.key==='Escape'&&!railStopSuggestions.hidden){
+   event.preventDefault();
+   closeRailStopSuggestions();
+ }else if(event.key==='ArrowDown'||event.key==='ArrowUp'){
+   if(event.target!==railStopSearch)railStopSearch.focus();
+   if(railStopSuggestions.hidden)renderRailStopSuggestions(true);
+   const options=[...railStopSuggestions.children];
+   if(!options.length)return;
+   event.preventDefault();
+   const active=options.findIndex(option=>option.id===railStopSearch.getAttribute('aria-activedescendant'));
+   const next=active<0?(event.key==='ArrowDown'?0:options.length-1):
+     Math.max(0,Math.min(options.length-1,active+(event.key==='ArrowDown'?1:-1)));
+   options[active]?.setAttribute('aria-selected','false');
+   options[next].setAttribute('aria-selected','true');
+   railStopSearch.setAttribute('aria-activedescendant',options[next].id);
+   options[next].scrollIntoView({block:'nearest'});
+ }else if(event.key==='Enter'&&event.target===railStopSearch&&!railStopSuggestions.hidden){
+   const active=railStopSuggestions.querySelector('[aria-selected="true"]')??railStopSuggestions.firstElementChild;
+   if(!active)return;
+   event.preventDefault();
+   selectRailStop(active.dataset.stopId);
+ }
+};
+railStopPicker.onfocusout=event=>{
+ if(!railStopPicker.contains(event.relatedTarget))closeRailStopSuggestions();
+};
+document.addEventListener('pointerdown',event=>{
+ if(!railStopPicker.contains(event.target)&&!railStopSuggestions.hidden)closeRailStopSuggestions();
+});
 by('branch').onchange=()=>applyRailJourney(Number(by('branch').value));
 function railRouteSequences(data, segments){
  const stations=new Map(segments.flatMap(seq=>seq.stopPoint.map(stop=>[stop.id,stop])));
