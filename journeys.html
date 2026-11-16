@@ -35,7 +35,7 @@ main:has(.field:focus-within){padding-bottom:max(64px,var(--search-space,0px))}
 .planner-actions{display:flex;gap:8px;margin-top:14px}.planner-actions .primary{width:auto;flex:1;margin-top:0}.tracker-link{display:inline-block;color:#fff;margin-top:4px;text-underline-offset:3px}
 </style>
 <main>
-<header><div class="locale" role="group" aria-label="Language"><button type="button" data-lang="zh" lang="zh-Hant">中</button> <button type="button" data-lang="en" lang="en">ENG</button></div><h1><span data-label="0">倫敦交通行程</span></h1><p><span data-label="1">規劃倫敦巴士、Tube、Overground、Elizabeth line 同 DLR 行程。</span></p><a class="tracker-link" href="https://jasontinuk-8.github.io/london-bus-tracker/" data-tracker>倫敦交通追蹤</a></header>
+<header><div class="locale" role="group" aria-label="Language"><button type="button" data-lang="zh" lang="zh-Hant">中</button> <button type="button" data-lang="en" lang="en">ENG</button></div><h1><span data-label="0">倫敦交通行程</span></h1><p><span data-label="1">規劃倫敦巴士、Tube、Overground、Elizabeth line、DLR、National Rail 同步行行程。</span></p><a class="tracker-link" href="https://jasontinuk-8.github.io/london-bus-tracker/" data-tracker>倫敦交通追蹤</a></header>
 <form class="panel" id="planner">
  <div class="fields station-fields">
   <fieldset><legend data-label="2"></legend>
@@ -59,7 +59,7 @@ main:has(.field:focus-within){padding-bottom:max(64px,var(--search-space,0px))}
 let language='zh';
 try{if(localStorage.getItem('rail-journey-language')==='en')language='en';}catch{}
 const tr=(zh,en)=>language==='en'?en:zh;
-const labels=[["倫敦交通行程","London Transport Journeys"],["規劃倫敦巴士、Tube、Overground、Elizabeth line 同 DLR 行程。","Plan journeys by bus, Tube, Overground, Elizabeth line and DLR."],["我喺邊","From"],["我想去邊","To"],["搜尋巴士站或車站","Search stops or stations"],null,null,null,null,["睇行程","Find journeys"],["使用目前位置","Use my location"],["清除行程","Clear journey"]];
+const labels=[["倫敦交通行程","London Transport Journeys"],["規劃倫敦巴士、Tube、Overground、Elizabeth line、DLR、National Rail 同步行行程。","Plan journeys by bus, Tube, Overground, Elizabeth line, DLR, National Rail and on foot."],["我喺邊","From"],["我想去邊","To"],["搜尋巴士站或車站","Search stops or stations"],null,null,null,null,["睇行程","Find journeys"],["使用目前位置","Use my location"],["清除行程","Clear journey"]];
 const statusTranslations=[["載入路線中…","Loading lines…"],["未能載入路線。請重試，或者直接輸入站名。","Could not load lines. Retry, or type a station name."],["載入車站中…","Loading stations…"],["先揀路線","Choose a line first"],["揀車站","Choose a station"],["未能載入車站","Could not load stations"],["請重新揀路線，或者直接輸入站名。","Select the line again or type a station name."],["請輸入出發地同目的地。","Enter a starting point and destination."],["請睇站內顯示屏","Check the station display"],["即時到站預測","Live arrival prediction"],["查看站內顯示屏","Check the station display"],["請揀兩個唔同嘅地點。","Choose two different locations."],["TfL 暫時搵唔到合適嘅行程。試下輸入附近巴士站或車站。","TfL found no suitable journeys. Try a nearby stop or station."],["請揀搜尋建議入面嘅車站，或者輸入更完整嘅地點。","Choose a suggested station or enter a more specific location."],["暫時未能向 TfL 取得行程，請再試一次。","Could not get journeys from TfL. Please try again."],["呢個瀏覽器未能提供定位。","Location is unavailable in this browser."],["搵緊你嘅位置…","Finding your location…"],["目前位置","Current location"],["已設定目前位置。按「睇行程」後會交畀 TfL 查詢。","Current location set. Find journeys to send it to TfL."],["未能取得位置，可以手動輸入。","Could not get your location. You can type a starting point."]];
 const minutesLabel=n=>Number.isFinite(Number(n))?tr(Number(n)+' 分鐘',Number(n)+' min'):'—';
 let activeJourney=0;
@@ -88,7 +88,7 @@ function applyLanguage(){
  }
  if(model)render(activeJourney);
 }
-const modes='bus,tube,overground,elizabeth-line,dlr';
+const modes='bus,tube,overground,elizabeth-line,dlr,national-rail';
 const transitModes=new Set(modes.split(','));
 const fields=['from','to'].map(id=>({input:document.querySelector('#'+id),choices:document.querySelector('#'+id+'-choices'),selected:null}));
 const result=document.querySelector('#result'),form=document.querySelector('#planner'),submit=form.querySelector('.primary');
@@ -290,6 +290,8 @@ function boardingLabel(leg,vehicle){
  return vehicle?.platformName?.trim()||leg.departurePoint?.stopLetter||leg.departurePoint?.platformName||
   (leg.mode?.id==='bus'?tr('請睇巴士站牌','Check the bus stop sign'):tr('請睇站內顯示屏','Check the station display'));
 }
+function walkingLeg(leg){return leg.mode?.id==='walking';}
+function nationalRailLeg(leg){return leg.mode?.id==='national-rail';}
 function transitLeg(leg){return transitModes.has(leg.mode?.id);}
 function lineId(leg){return leg.routeOptions?.[0]?.lineIdentifier?.id;}
 function stopId(point){
@@ -489,6 +491,10 @@ function connectionPredictions(legs){
   const transferTime=connection?Math.max(60000,walking):walking;
   const ready=(connection??Promise.resolve({arrival:Date.now()})).then(({arrival})=>arrival+transferTime);
   previous=ready.then(async readyAt=>{
+   if(nationalRailLeg(leg)){
+    const arrival=journeyTimestamp(leg.arrivalTime);
+    return {arrival:Number.isFinite(arrival)?arrival:readyAt+(Number(leg.duration)||0)*60000};
+   }
    let [train]=await eligibleTrains(leg,arrivals,readyAt);
    if(!train)[train]=await richmondScheduledTrains(leg,readyAt);
    const departure=journeyTimestamp(leg.departureTime);
@@ -685,21 +691,31 @@ function render(index=0){
  const version=++view;
  const journey=model.journeys[index],first=journey.legs.find(transitLeg);
  const predictions=connectionPredictions(journey.legs);
- const transfers=journey.legs.filter(transitLeg).length-1;
- const walk=journey.legs.slice(0,journey.legs.indexOf(first)).reduce((sum,leg)=>sum+(leg.duration||0),0);
+ const transfers=Math.max(0,journey.legs.filter(transitLeg).length-1);
+ const walk=first?journey.legs.slice(0,journey.legs.indexOf(first)).reduce((sum,leg)=>sum+(leg.duration||0),0):0;
  result.innerHTML=`<section class="panel"><h2>${html(model.location?tr('目前位置','Current location'):model.from)} → ${html(model.to)}</h2>
- <p class="muted">${tr('約 ','About ')}${minutesLabel(journey.duration)} · ${transfers?tr('轉 '+transfers+' 次車',transfers+' '+(transfers===1?'change':'changes')):tr('直達','Direct')} · ${tr('預計 ','Arrive ')}${time(journey.arrivalDateTime)}${tr(' 到達','')}</p>
- <div class="tabs">${model.journeys.map((option,i)=>`<button type="button" data-plan="${i}" aria-pressed="${i===index}">${option.legs.filter(transitLeg).length===1?tr('直達','Direct'):tr((option.legs.filter(transitLeg).length-1)+' 次轉車',(option.legs.filter(transitLeg).length-1)+' change(s)')}${option.arrivalDateTime===model.earliest?tr(' · 最早到達',' · Earliest arrival'):''} · ${time(option.arrivalDateTime)}</button>`).join('')}</div></section>
- <div class="walk"><strong>${tr('上車站：','Board at ')}${html(stopName(first.departurePoint,first))}</strong>${walk?tr(' · 步行約 ',' · Walk about ')+minutesLabel(walk):''}</div>
+ <p class="muted">${tr('約 ','About ')}${minutesLabel(journey.duration)} · ${!first?tr('步行','Walk'):transfers?tr('轉 '+transfers+' 次車',transfers+' '+(transfers===1?'change':'changes')):tr('直達','Direct')} · ${tr('預計 ','Arrive ')}${time(journey.arrivalDateTime)}${tr(' 到達','')}</p>
+ <div class="tabs">${model.journeys.map((option,i)=>`<button type="button" data-plan="${i}" aria-pressed="${i===index}">${option.legs.every(walkingLeg)?tr('步行','Walk'):option.legs.filter(transitLeg).length===1?tr('直達','Direct'):tr((option.legs.filter(transitLeg).length-1)+' 次轉車',(option.legs.filter(transitLeg).length-1)+' change(s)')}${option.arrivalDateTime===model.earliest?tr(' · 最早到達',' · Earliest arrival'):''} · ${time(option.arrivalDateTime)}</button>`).join('')}</div></section>
+ ${first?`<div class="walk"><strong>${tr('上車站：','Board at ')}${html(stopName(first.departurePoint,first))}</strong>${walk?tr(' · 步行約 ',' · Walk about ')+minutesLabel(walk):''}</div>`:''}
  ${journey.legs.map((leg,legIndex)=>{
   const start=stopName(leg.departurePoint,leg),end=stopName(leg.arrivalPoint,leg);
-  if(!transitLeg(leg))return `<p class="muted walk">${tr('步行約 ','Walk about ')}${minutesLabel(leg.duration)}${end?' → '+html(end):''}</p>`;
+  if(walkingLeg(leg)){
+   const steps=(leg.instruction?.steps??[]).map(step=>step.description).filter(Boolean);
+   return `<section class="walk"><strong>${tr('步行約 ','Walk about ')}${minutesLabel(leg.duration)}</strong>${leg.distance>0?' · '+html(leg.distance)+tr(' 米',' m'):''}${end?`<p>${[start,end].filter(Boolean).map(html).join(' → ')}</p>`:''}${steps.length?`<details><summary>${tr('步行指示','Walking directions')}</summary><ol>${steps.map(step=>'<li>'+html(step)+'</li>').join('')}</ol></details>`:''}</section>`;
+  }
   const route=leg.routeOptions?.[0],heads=headsigns(leg);
   const bus=leg.mode.id==='bus';
   const lineName=route?.lineIdentifier?.name||route?.name||leg.mode.name;
   const label=bus?tr('巴士 ','Bus ')+lineName:lineName;
   const stops=(leg.path?.stopPoints??[]).map(stop=>bus?stop.name:clean(stop.name)).filter(name=>name&&name!==start&&name!==end);
   const hasChange=journey.legs.slice(legIndex+1).some(transitLeg);
+  if(nationalRailLeg(leg))return `<article class="leg" style="--line:#8a243b">
+   <p>${lineBadge(undefined,'National Rail')}</p><h3>${html(start)} → ${html(end)}</h3>
+   <p>${html(lineName)} · ${tr('約 ','About ')}${minutesLabel(leg.duration)}</p>
+   <p>${tr('計劃開車 ','Planned departure ')}<strong>${time(leg.departureTime)}</strong> · ${tr('計劃到達 ','Planned arrival ')}<strong>${time(leg.arrivalTime)}</strong></p>
+   ${leg.departurePoint?.platformName?`<p>${tr('月台 ','Platform ')}${html(leg.departurePoint.platformName)}</p>`:''}
+   <details data-map-leg="${legIndex}"><summary>${tr('睇沿途車站同地圖','Show stops and map')}</summary><div class="stops-map" role="region" aria-label="${tr('沿途車站地圖','Map of stops')}"></div><p class="muted" data-map-note></p><ol>${[start,...stops,end].map(name=>'<li>'+html(name)+'</li>').join('')}</ol></details>
+  </article>`;
   return `<article class="leg" id="journey-leg-${legIndex}" data-transit-leg="${legIndex}" style="--line:${lineStyle(lineId(leg))[0]}">
    <p>${lineBadge(lineId(leg),label)}</p><h3>${tr('喺 ','Board at ')}${html(start)}${tr(' 上車','')}</h3>
    <p>${bus?tr('站牌','Stop'):tr('月台','Platform')} <strong data-platform>${html(boardingLabel(leg))}</strong></p>
@@ -776,11 +792,11 @@ async function plan(event){
   if(from.id===to.id)throw Object.assign(Error(tr("請揀兩個唔同嘅地點。","Choose two different locations.")),{name:'PlannerMessage'});
   const path=journeyPath(from.id,to.id);
   const searches=['leasttime','leastinterchange'].map(journeyPreference=>api(path,{mode:modes+',walking',journeyPreference}));
-  const responses=await Promise.allSettled(searches);
+  const responses=await Promise.allSettled([...searches,api(path,{mode:'walking'})]);
   if(responses.every(response=>response.status==='rejected'))throw responses[0].reason;
   const seen=new Set();
   const options=responses.flatMap(response=>response.status==='fulfilled'?response.value.journeys??[]:[])
-   .filter(journey=>journey.legs?.some(transitLeg)&&journey.legs.every(leg=>transitLeg(leg)||leg.mode?.id==='walking'))
+   .filter(journey=>journey.legs?.length&&journey.legs.every(leg=>transitLeg(leg)||walkingLeg(leg)))
    .sort((a,b)=>String(a.arrivalDateTime).localeCompare(String(b.arrivalDateTime))).filter(journey=>{
     const key=journeySignature(journey);
     if(seen.has(key))return false;
@@ -789,7 +805,8 @@ async function plan(event){
   if(version!==request)return;
   if(!options.length)throw Object.assign(Error(tr("TfL 暫時搵唔到合適嘅行程。試下輸入附近巴士站或車站。","TfL found no suitable journeys. Try a nearby stop or station.")),{name:'PlannerMessage'});
   const direct=options.filter(option=>option.legs.filter(transitLeg).length===1);
-  const journeys=[...new Set([options[0],direct[0],...options].filter(Boolean))].slice(0,3);
+  const walkOnly=options.find(option=>option.legs.every(walkingLeg));
+  const journeys=[...new Set([options[0],direct[0],walkOnly,...options].filter(Boolean))].slice(0,3);
   journeyEndpoints=[from,to];
   model={from:from.name,to:to.name,location:from.location,journeys,earliest:options[0].arrivalDateTime};
   render();
