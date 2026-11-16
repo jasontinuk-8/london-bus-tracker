@@ -114,11 +114,6 @@ body,.viewport,.status{background:#fff;color:#111}.card,.viewport{border-color:#
  <p data-copy="intro">睇倫敦巴士、Tube、Overground 同 Elizabeth line 嘅即時班次同位置。</p>
  <a href="./journeys.html" id="journeysLink" data-copy="journeys">倫敦交通行程</a>
 </header>
-<h2 class="destination-display"><canvas id="ledDisplay" aria-hidden="true"></canvas><span id="ledHeading" class="visually-hidden"></span></h2>
-<div class="arrival-display" id="arrivalDisplay">
- <canvas id="arrivalLed" aria-hidden="true" hidden></canvas>
- <p class="arrival-copy" id="arrivalCopy" role="status"></p>
-</div>
 <div class="choices" id="modePicker" role="group" aria-label="Transport">
 <button type="button" data-mode="bus" data-copy="busMode"></button>
 <button type="button" data-mode="tube">Tube</button>
@@ -131,6 +126,11 @@ body,.viewport,.status{background:#fff;color:#111}.card,.viewport{border-color:#
 <button id="locate" type="button" data-copy="locate" disabled></button>
 <span id="locationNote" class="muted" role="status"></span>
 <form id="routeSearch" class="route-search"><label><span data-copy="searchLabel"></span><input id="routeInput" maxlength="8" placeholder="65, K3, SL7" required></label><button data-copy="search"></button><p id="searchNote" class="muted" role="status"></p></form><div class="controls"><div class="choices" id="routePicker" role="group" data-label="route"><button id="route65">65</button><button id="route371">371</button></div><div class="choices" role="group" data-label="direction"><button id="outbound" aria-pressed="true">Ealing Broadway</button><button id="inbound" aria-pressed="false">Kingston · Brook Street</button></div><label><span data-copy="boarding"></span> <select id="station"></select></label></div>
+<h2 class="destination-display"><canvas id="ledDisplay" aria-hidden="true"></canvas><span id="ledHeading" class="visually-hidden"></span></h2>
+<div class="arrival-display" id="arrivalDisplay">
+ <canvas id="arrivalLed" aria-hidden="true" hidden></canvas>
+ <p class="arrival-copy" id="arrivalCopy" role="status"></p>
+</div>
 <div class="layout">
 <section class="card diagram">
 <div class="route-map-actions"><button id="openRouteMap" data-copy="fullMap" disabled></button><a id="googleRoute" data-copy="googleTrip" target="_blank" rel="noopener" hidden></a></div><div class="route-columns"><div id="outboundPanel"><h2 class="track-heading"><span class="arrow" aria-hidden="true">↓</span> <span data-copy="out"></span></h2>
