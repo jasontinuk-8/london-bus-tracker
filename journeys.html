@@ -959,9 +959,10 @@ document.querySelectorAll('[data-lang]').forEach(button=>button.onclick=()=>{
  try{localStorage.setItem('rail-journey-language',language);}catch{}
  applyLanguage();
 });
-restoreJourney();
+const returningToJourney=/^#journey-leg-\d+$/.test(location.hash);
+if(returningToJourney)restoreJourney();
 applyLanguage();
-if(model&&/^#journey-leg-\d+$/.test(location.hash)){
+if(returningToJourney&&model){
  requestAnimationFrame(()=>document.getElementById(location.hash.slice(1))?.scrollIntoView());
 }
 </script>
