@@ -1488,7 +1488,8 @@ const nationalRailEndpoint='https://national-rail.jasontin-uk.workers.dev/depart
 const nationalRailForm=by('nationalRailForm');
 const nationalRailCode=/^[A-Z]{3}$/;
 let nationalStations={KNG:'Kingston',WAT:'London Waterloo'};
-const normalizeStation=value=>value.normalize('NFD').replace(/\p{M}/gu,'').trim().toLowerCase().replace(/\s+/g,' ');
+let nationalStationsReady;
+const normalizeStation=value=>value.normalize('NFD').replace(/[\p{M}'’]/gu,'').trim().toLowerCase().replace(/\s+/g,' ');
 function nationalStationCode(value){
  const query=normalizeStation(value);
  const exact=Object.entries(nationalStations).filter(([,name])=>normalizeStation(name)===query);
@@ -1534,20 +1535,24 @@ function renderNationalRail(){
 async function loadNationalRail(refresh=false){
  const request=++nationalRailRequest;
  if(!refresh){
-  const from=nationalStationCode(by('nationalFrom').value);
+  const origin=by('nationalFrom').value.trim();
   const destination=by('nationalTo').value.trim();
-  const to=destination?nationalStationCode(destination):'';
-  nationalRailQuery={from,to};
+  nationalRailQuery=null;
   nationalRailBoard=null;
   nextArrivals=[];
+  arrivalBoardStatus='loading';
+  renderNationalRail();
+  await nationalStationsReady;
+  if(request!==nationalRailRequest)return;
+  const from=nationalStationCode(origin);
+  const to=destination?nationalStationCode(destination):'';
+  nationalRailQuery={from,to};
   if(!from||(destination&&!to)||from===to){
    nationalRailQuery=null;
    arrivalBoardStatus=from&&from===to?'same-station':'invalid';
    renderNationalRail();
    return;
   }
-  arrivalBoardStatus='loading';
-  renderNationalRail();
  }
  const {from,to}=nationalRailQuery;
  try{
@@ -1575,7 +1580,9 @@ window.addEventListener('resize',redrawLedDisplays);
 reducedMotion.addEventListener?.('change',redrawLedDisplays);
 applyLanguage();
 if(nationalRail){
- loadNationalStations();
+ if(params.has('from'))by('nationalFrom').value=params.get('from');
+ if(params.has('from')||params.has('to'))by('nationalTo').value=params.get('to')??'';
+ nationalStationsReady=loadNationalStations();
  loadNationalRail();
  setInterval(()=>{if(!document.hidden&&nationalRailQuery)loadNationalRail(true)},30000);
 }

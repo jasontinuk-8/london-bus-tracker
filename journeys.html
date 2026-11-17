@@ -5,7 +5,7 @@
 <title>倫敦交通行程</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
-*{box-sizing:border-box}body{margin:0;background:#eef1f5;color:#182438;font:16px/1.5 system-ui,sans-serif}main{max-width:760px;margin:auto;padding:24px 16px 64px}header{background:#142640;color:#fff;border-radius:24px;padding:26px clamp(16px,5vw,36px);margin-bottom:16px}h1{font-size:clamp(28px,6vw,42px);line-height:1.1;margin:8px 0}h2,h3,p{margin:0 0 8px}.muted{color:#495b72}header p{color:#d6e4f5}.sample{display:inline-block;background:#fff0bd;color:#594100;padding:4px 10px;border-radius:8px;font-size:13px;font-weight:700}.panel,.leg{background:white;border:1px solid #d5dce6;border-radius:18px;padding:18px;margin-bottom:14px}.fields{display:grid;grid-template-columns:1fr 1fr;gap:12px}label{display:grid;gap:4px;font-weight:700}select,button{font:inherit;border-radius:10px;padding:10px 12px;min-height:44px}select{width:100%;background:#fff;color:inherit;border:1px solid #aab6c8}button{cursor:pointer;background:white;color:#172944;border:1px solid #aab6c8;font-weight:700}button:focus-visible,summary:focus-visible,select:focus-visible{outline:3px solid #226cc7;outline-offset:2px}.primary{width:100%;margin-top:14px;background:#1855a5;color:#fff;border-color:#1855a5}.examples,.tabs{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}.examples button{font-size:13px}.tabs button[aria-pressed=true]{background:#162a45;color:#fff;border-color:#162a45}.leg{border-left:6px solid var(--line);padding:16px}.line{font-size:14px;font-weight:800;color:var(--line)}.board{display:grid;grid-template-columns:1fr auto;gap:12px;background:#142640;color:#fff;border-radius:12px;padding:14px;margin:12px 0}.board small{display:block;color:#d6e4f5}.board strong{font-size:20px}.eta{text-align:right;white-space:nowrap}.alight{font-weight:700}summary{cursor:pointer;font-weight:650}ol{margin-bottom:0;padding-left:24px}.walk{background:#e9f2ff;border-radius:10px;padding:12px;margin:12px 0 16px}.walk-map-link{color:#184b8d;font-weight:650;text-underline-offset:3px}.journey-map-details{margin-top:14px}.journey-map-details .stops-map{height:clamp(260px,55vh,460px)}.journey-map-key{margin-top:8px}.empty{padding:14px;background:#fff0bd;border-radius:10px}@media(max-width:480px){.fields{grid-template-columns:1fr}.board strong{font-size:17px}}
+*{box-sizing:border-box}body{margin:0;background:#eef1f5;color:#182438;font:16px/1.5 system-ui,sans-serif}main{max-width:760px;margin:auto;padding:24px 16px 64px}header{background:#142640;color:#fff;border-radius:24px;padding:26px clamp(16px,5vw,36px);margin-bottom:16px}h1{font-size:clamp(28px,6vw,42px);line-height:1.1;margin:8px 0}h2,h3,p{margin:0 0 8px}.muted{color:#495b72}header p{color:#d6e4f5}.sample{display:inline-block;background:#fff0bd;color:#594100;padding:4px 10px;border-radius:8px;font-size:13px;font-weight:700}.panel,.leg{background:white;border:1px solid #d5dce6;border-radius:18px;padding:18px;margin-bottom:14px}.fields{display:grid;grid-template-columns:1fr 1fr;gap:12px}label{display:grid;gap:4px;font-weight:700}select,button{font:inherit;border-radius:10px;padding:10px 12px;min-height:44px}select{width:100%;background:#fff;color:inherit;border:1px solid #aab6c8}button{cursor:pointer;background:white;color:#172944;border:1px solid #aab6c8;font-weight:700}button:focus-visible,summary:focus-visible,select:focus-visible{outline:3px solid #226cc7;outline-offset:2px}.primary{width:100%;margin-top:14px;background:#1855a5;color:#fff;border-color:#1855a5}.examples,.tabs{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}.examples button{font-size:13px}.tabs button[aria-pressed=true]{background:#162a45;color:#fff;border-color:#162a45}.leg{border-left:6px solid var(--line);padding:16px}.line{font-size:14px;font-weight:800;color:var(--line)}.board{display:grid;grid-template-columns:1fr auto;gap:12px;background:#142640;color:#fff;border-radius:12px;padding:14px;margin:12px 0}.board small{display:block;color:#d6e4f5}.board strong{font-size:20px}.eta{text-align:right;white-space:nowrap}.alight{font-weight:700}summary{cursor:pointer;font-weight:650}ol{margin-bottom:0;padding-left:24px}.walk{background:#e9f2ff;border-radius:10px;padding:12px;margin:12px 0 16px}.journey-action-link{color:#184b8d;font-weight:650;text-underline-offset:3px}.journey-map-details{margin-top:14px}.journey-map-details .stops-map{height:clamp(260px,55vh,460px)}.journey-map-key{margin-top:8px}.empty{padding:14px;background:#fff0bd;border-radius:10px}@media(max-width:480px){.fields{grid-template-columns:1fr}.board strong{font-size:17px}}
 .field{position:relative;min-width:0}.field input{width:100%;min-height:44px;padding:10px 12px;border:1px solid #aab6c8;border-radius:10px;font:inherit;color:inherit}.choices{position:absolute;z-index:2;top:100%;width:100%;background:white;border:1px solid #aab6c8;border-radius:10px;padding:4px;margin-top:4px;box-shadow:0 8px 18px #14264022}.choices button{display:block;width:100%;border:0;text-align:left}.choices button:hover{background:#e9f2ff}.primary:disabled{opacity:.65;cursor:wait}
 .station-picker{margin-top:12px}.station-picker .fields{margin-top:10px}.station-picker p:not(:empty){margin-top:8px}
 .locale{text-align:right}.locale button[aria-pressed=true]{background:#dbeafe}.next-trains{margin:12px 0}.next-trains li{padding:5px 0}
@@ -318,8 +318,14 @@ function stopId(point){
 }
 function trackerUrl(leg,index,vehicle){
  const mode=leg.mode.id,line=lineId(leg);
- if(!line||!['bus','tube','overground','elizabeth-line'].includes(mode))return '';
  const url=new URL('https://jasontinuk-8.github.io/london-bus-tracker/');
+ if(nationalRailLeg(leg)){
+  const from=stopName(leg.departurePoint,leg),to=stopName(leg.arrivalPoint,leg);
+  if(!from||!to)return '';
+  url.search=new URLSearchParams({mode,from,to,returnSite:'github',returnLeg:String(index)});
+  return url.href;
+ }
+ if(!line||!['bus','tube','overground','elizabeth-line'].includes(mode))return '';
  const direction=(vehicle?.direction||leg.routeOptions?.[0]?.direction)?.toLowerCase();
  for(const [key,value] of Object.entries({
   ...(mode==='bus'?{bus:line}:{mode,line}), returnSite:'github',returnLeg:String(index),
@@ -814,7 +820,7 @@ function render(index=0){
   const start=stopName(leg.departurePoint,leg),end=stopName(leg.arrivalPoint,leg);
   if(walkingLeg(leg)){
    const mapsUrl=walkingMapUrl(leg);
-   return `<section class="walk"><strong>${tr('步行約 ','Walk about ')}${minutesLabel(leg.duration)}</strong>${leg.distance>0?' · '+html(leg.distance)+tr(' 米',' m'):''}${end?`<p>${[start,end].filter(Boolean).map(html).join(' → ')}</p>`:''}${mapsUrl?`<a class="walk-map-link" href="${html(mapsUrl)}" target="_blank" rel="noopener noreferrer">${tr('用 Google Maps 睇步行路線','Walking directions in Google Maps')}</a>`:''}</section>`;
+   return `<section class="walk"><strong>${tr('步行約 ','Walk about ')}${minutesLabel(leg.duration)}</strong>${leg.distance>0?' · '+html(leg.distance)+tr(' 米',' m'):''}${end?`<p>${[start,end].filter(Boolean).map(html).join(' → ')}</p>`:''}${mapsUrl?`<a class="journey-action-link" href="${html(mapsUrl)}" target="_blank" rel="noopener noreferrer">${tr('用 Google Maps 睇步行路線','Walking directions in Google Maps')}</a>`:''}</section>`;
   }
   const route=leg.routeOptions?.[0],heads=headsigns(leg);
   const bus=leg.mode.id==='bus';
@@ -822,14 +828,15 @@ function render(index=0){
   const label=bus?tr('巴士 ','Bus ')+lineName:lineName;
   const stops=(leg.path?.stopPoints??[]).map(stop=>bus?stop.name:clean(stop.name)).filter(name=>name&&name!==start&&name!==end);
   const hasChange=journey.legs.slice(legIndex+1).some(transitLeg);
+  const tracker=trackerUrl(leg,legIndex);
   if(nationalRailLeg(leg)||timing)return `<article class="leg" id="journey-leg-${legIndex}" style="--line:${nationalRailLeg(leg)?'#8a243b':lineStyle(lineId(leg))[0]}">
    <p>${nationalRailLeg(leg)?lineBadge(undefined,'National Rail'):lineBadge(lineId(leg),label)}</p><h3>${html(start)} → ${html(end)}</h3>
    <p>${nationalRailLeg(leg)?html(lineName)+' · ':''}${tr('約 ','About ')}${minutesLabel(leg.duration)}</p>
    <p>${tr('計劃開車 ','Planned departure ')}<strong>${time(leg.departureTime)}</strong> · ${tr('計劃到達 ','Planned arrival ')}<strong>${time(leg.arrivalTime)}</strong></p>
+   ${nationalRailLeg(leg)&&tracker?`<p><a class="journey-action-link" href="${html(tracker)}">${tr('喺 Tracker 睇即時開車班次','See live departures in Tracker')}</a></p>`:''}
    ${bus&&leg.departurePoint?.stopLetter?`<p>${tr('站牌 ','Stop ')}${html(leg.departurePoint.stopLetter)}</p>`:leg.departurePoint?.platformName?`<p>${tr('月台 ','Platform ')}${html(leg.departurePoint.platformName)}</p>`:''}
    <details data-map-leg="${legIndex}"><summary>${tr('睇沿途車站同地圖','Show stops and map')}</summary><div class="stops-map" role="region" aria-label="${tr('沿途車站地圖','Map of stops')}"></div><p class="muted" data-map-note></p><ol>${[start,...stops,end].map(name=>'<li>'+html(name)+'</li>').join('')}</ol></details>
   </article>`;
-  const tracker=trackerUrl(leg,legIndex);
   return `<article class="leg" id="journey-leg-${legIndex}" data-transit-leg="${legIndex}" style="--line:${lineStyle(lineId(leg))[0]}">
    <p>${lineBadge(lineId(leg),label)}</p><h3>${tr('喺 ','Board at ')}${html(start)}${tr(' 上車','')}</h3>
    <p>${bus?tr('站牌','Stop'):tr('月台','Platform')} <strong data-platform>${html(boardingLabel(leg))}</strong></p>
