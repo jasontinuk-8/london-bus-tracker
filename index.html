@@ -507,25 +507,35 @@ function applyRailJourney(index){
  applyLanguage();
  refreshTraffic();
 }
-function fillRailDirectionPicker(){
+function railLinkScore(journey){
+ const points=branches[journey.dir][journey.branchIndex].stopPoint;
+ return 4*linkStopScore(points,stop=>stop.id)
+   +2*Number(journey.destination.id===linkTerminal)+Number(journey.dir===linkDirection);
+}
+function fillRailDirectionPicker(linked=false){
  if(!rail)return;
  const stopId=railStop.value;
- const journeys=[],seen=new Set();
+ const journeys=[];
  for(const dir of directions)(branches[dir]??[]).forEach((sequence,index)=>{
    const stopIndex=sequence.stopPoint.findIndex(stop=>stop.id===stopId);
    if(stopIndex<0||stopIndex===sequence.stopPoint.length-1)return;
    const destination=sequence.stopPoint.at(-1);
-   if(seen.has(destination.id))return;
-   seen.add(destination.id);
    journeys.push({dir,branchIndex:index,stopIndex,destination,remaining:sequence.stopPoint.length-stopIndex});
  });
- journeys.sort((a,b)=>b.remaining-a.remaining||a.destination.name.localeCompare(b.destination.name));
- railJourneys=journeys;
- by('branch').replaceChildren(...journeys.map((journey,i)=>new Option('',i)));
+ if(linked)journeys.sort((a,b)=>railLinkScore(b)-railLinkScore(a));
+ const seen=new Set();
+ railJourneys=journeys.filter(({destination})=>{
+   if(seen.has(destination.id))return false;
+   seen.add(destination.id);
+   return true;
+ });
+ railJourneys.sort((a,b)=>b.remaining-a.remaining||a.destination.name.localeCompare(b.destination.name));
+ by('branch').replaceChildren(...railJourneys.map((journey,i)=>new Option('',i)));
  refreshRailJourneyLabels();
- by('branchPicker').hidden=!journeys.length;
- if(!journeys.length)return;
- let selected=journeys.findIndex(journey=>journey.dir===direction&&journey.branchIndex===branchIndex[direction]);
+ by('branchPicker').hidden=!railJourneys.length;
+ if(!railJourneys.length)return;
+ let selected=linked?railJourneys.indexOf(journeys[0]):railJourneys.findIndex(journey=>
+   journey.dir===direction&&journey.branchIndex===branchIndex[direction]);
  if(selected<0)selected=0;
  by('branch').value=String(selected);
  applyRailJourney(selected);
@@ -553,10 +563,11 @@ function setupRailJourneyPicker(){
  let saved;
  try{saved=localStorage.getItem('rail-'+line+'-stop')}catch{}
  const fallback=routes[direction]?.[0]?.[0]??options[0]?.[0];
- railStop.value=stations.has(saved)?saved:fallback;
+ const linked=stations.has(linkStop);
+ railStop.value=linked?linkStop:stations.has(saved)?saved:fallback;
  by('railStopSearch').value=railStop.selectedOptions[0]?.textContent??'';
  by('railStopPicker').hidden=false;
- fillRailDirectionPicker();
+ fillRailDirectionPicker(linked);
 }
 railStop.onchange=()=>selectRailStop(railStop.value);
 const railStopSearch=by('railStopSearch'),railStopToggle=by('railStopToggle');
@@ -739,10 +750,11 @@ by('routeSearch').onsubmit=event=>{
 const destinations={};
 const towards=dir=>tr('往 ','Towards ')+destinations[dir];
 const directions=['outbound','inbound'];
-const linkDirection=!rail&&directions.includes(params.get('direction'))?params.get('direction'):null;
-const linkStop=rail?null:params.get('stop');
-const linkAlight=rail?null:params.get('alight');
-const linkVehicle=rail?null:params.get('vehicle');
+const linkDirection=directions.includes(params.get('direction'))?params.get('direction'):null;
+const linkStop=params.get('stop');
+const linkAlight=params.get('alight');
+const linkVehicle=params.get('vehicle');
+const linkTerminal=params.get('terminal');
 let pendingLinkedVehicle=null;
 let direction=linkDirection??(params.get('route')==='south'?'inbound':'outbound');
 function linkStopScore(stops,idOf){
@@ -1198,12 +1210,12 @@ function render(){
    }
  });
  if(pendingLinkedVehicle&&usable){
-   const bus=records.find(p=>p.vehicleId===pendingLinkedVehicle);
-   if(bus){
-     chosen={dir:direction,ids:new Set([bus.vehicleId])};
-     reveal(direction,Math.max(0,lookup.get(bus.naptanId)-1));
+   const vehicle=records.find(p=>p.vehicleId===pendingLinkedVehicle);
+   if(vehicle){
+     chosen={dir:direction,ids:new Set([vehicle.vehicleId])};
+     reveal(direction,Math.max(0,lookup.get(vehicle.naptanId)-1));
+     pendingLinkedVehicle=null;
    }
-   pendingLinkedVehicle=null;
  }
  const groups={outbound:new Map(),inbound:new Map()};
  const routeIds=Object.fromEntries(directions.map(dir=>[dir,new Set(routes[dir].map(row=>row[0]))]));
@@ -1457,8 +1469,9 @@ async function start(){
    }
    createTracks();applyLanguage();
    setDirection(true,linkStop);
+   if(rail)setupRailJourneyPicker();
    pendingLinkedVehicle=linkVehicle;
-   if(rail)setupRailJourneyPicker();refreshTraffic();setInterval(refreshTraffic,300000);refresh();setInterval(refresh,30000);setInterval(render,5000);
+   refreshTraffic();setInterval(refreshTraffic,300000);refresh();setInterval(refresh,30000);setInterval(render,5000);
  }catch{stopsFailed=true;routeError ||= 'unavailable';applyLanguage()}
 }
 by('routeInput').value=line;

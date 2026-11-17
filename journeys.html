@@ -5,7 +5,7 @@
 <title>倫敦交通行程</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
-*{box-sizing:border-box}body{margin:0;background:#eef1f5;color:#182438;font:16px/1.5 system-ui,sans-serif}main{max-width:760px;margin:auto;padding:24px 16px 64px}header{background:#142640;color:#fff;border-radius:24px;padding:26px clamp(16px,5vw,36px);margin-bottom:16px}h1{font-size:clamp(28px,6vw,42px);line-height:1.1;margin:8px 0}h2,h3,p{margin:0 0 8px}.muted{color:#495b72}header p{color:#d6e4f5}.sample{display:inline-block;background:#fff0bd;color:#594100;padding:4px 10px;border-radius:8px;font-size:13px;font-weight:700}.panel,.leg{background:white;border:1px solid #d5dce6;border-radius:18px;padding:18px;margin-bottom:14px}.fields{display:grid;grid-template-columns:1fr 1fr;gap:12px}label{display:grid;gap:4px;font-weight:700}select,button{font:inherit;border-radius:10px;padding:10px 12px;min-height:44px}select{width:100%;background:#fff;color:inherit;border:1px solid #aab6c8}button{cursor:pointer;background:white;color:#172944;border:1px solid #aab6c8;font-weight:700}button:focus-visible,summary:focus-visible,select:focus-visible{outline:3px solid #226cc7;outline-offset:2px}.primary{width:100%;margin-top:14px;background:#1855a5;color:#fff;border-color:#1855a5}.examples,.tabs{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}.examples button{font-size:13px}.tabs button[aria-pressed=true]{background:#162a45;color:#fff;border-color:#162a45}.leg{border-left:6px solid var(--line);padding:16px}.line{font-size:14px;font-weight:800;color:var(--line)}.board{display:grid;grid-template-columns:1fr auto;gap:12px;background:#142640;color:#fff;border-radius:12px;padding:14px;margin:12px 0}.board small{display:block;color:#d6e4f5}.board strong{font-size:20px}.eta{text-align:right;white-space:nowrap}.alight{font-weight:700}summary{cursor:pointer;font-weight:650}ol{margin-bottom:0;padding-left:24px}.walk{background:#e9f2ff;border-radius:10px;padding:12px;margin:12px 0 16px}.empty{padding:14px;background:#fff0bd;border-radius:10px}@media(max-width:480px){.fields{grid-template-columns:1fr}.board strong{font-size:17px}}
+*{box-sizing:border-box}body{margin:0;background:#eef1f5;color:#182438;font:16px/1.5 system-ui,sans-serif}main{max-width:760px;margin:auto;padding:24px 16px 64px}header{background:#142640;color:#fff;border-radius:24px;padding:26px clamp(16px,5vw,36px);margin-bottom:16px}h1{font-size:clamp(28px,6vw,42px);line-height:1.1;margin:8px 0}h2,h3,p{margin:0 0 8px}.muted{color:#495b72}header p{color:#d6e4f5}.sample{display:inline-block;background:#fff0bd;color:#594100;padding:4px 10px;border-radius:8px;font-size:13px;font-weight:700}.panel,.leg{background:white;border:1px solid #d5dce6;border-radius:18px;padding:18px;margin-bottom:14px}.fields{display:grid;grid-template-columns:1fr 1fr;gap:12px}label{display:grid;gap:4px;font-weight:700}select,button{font:inherit;border-radius:10px;padding:10px 12px;min-height:44px}select{width:100%;background:#fff;color:inherit;border:1px solid #aab6c8}button{cursor:pointer;background:white;color:#172944;border:1px solid #aab6c8;font-weight:700}button:focus-visible,summary:focus-visible,select:focus-visible{outline:3px solid #226cc7;outline-offset:2px}.primary{width:100%;margin-top:14px;background:#1855a5;color:#fff;border-color:#1855a5}.examples,.tabs{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}.examples button{font-size:13px}.tabs button[aria-pressed=true]{background:#162a45;color:#fff;border-color:#162a45}.leg{border-left:6px solid var(--line);padding:16px}.line{font-size:14px;font-weight:800;color:var(--line)}.board{display:grid;grid-template-columns:1fr auto;gap:12px;background:#142640;color:#fff;border-radius:12px;padding:14px;margin:12px 0}.board small{display:block;color:#d6e4f5}.board strong{font-size:20px}.eta{text-align:right;white-space:nowrap}.alight{font-weight:700}summary{cursor:pointer;font-weight:650}ol{margin-bottom:0;padding-left:24px}.walk{background:#e9f2ff;border-radius:10px;padding:12px;margin:12px 0 16px}.walk-map-link{color:#184b8d;font-weight:650;text-underline-offset:3px}.journey-map-details{margin-top:14px}.journey-map-details .stops-map{height:clamp(260px,55vh,460px)}.journey-map-key{margin-top:8px}.empty{padding:14px;background:#fff0bd;border-radius:10px}@media(max-width:480px){.fields{grid-template-columns:1fr}.board strong{font-size:17px}}
 .field{position:relative;min-width:0}.field input{width:100%;min-height:44px;padding:10px 12px;border:1px solid #aab6c8;border-radius:10px;font:inherit;color:inherit}.choices{position:absolute;z-index:2;top:100%;width:100%;background:white;border:1px solid #aab6c8;border-radius:10px;padding:4px;margin-top:4px;box-shadow:0 8px 18px #14264022}.choices button{display:block;width:100%;border:0;text-align:left}.choices button:hover{background:#e9f2ff}.primary:disabled{opacity:.65;cursor:wait}
 .station-picker{margin-top:12px}.station-picker .fields{margin-top:10px}.station-picker p:not(:empty){margin-top:8px}
 .locale{text-align:right}.locale button[aria-pressed=true]{background:#dbeafe}.next-trains{margin:12px 0}.next-trains li{padding:5px 0}
@@ -15,7 +15,7 @@
 main:has(.field:focus-within){padding-bottom:max(64px,var(--search-space,0px))}
 #location-status:empty{display:none}
 #location-status:not(:empty){margin-top:8px}
-.board[data-train-map],.board[data-tracker-bus]{width:100%;text-align:left;border:1px solid #142640}.board .map-action{grid-column:1/-1;font-weight:650;color:#d6e4f5}.board[data-tracker-bus]{text-decoration:none;font-weight:700}.board[data-tracker-bus] .map-action{text-decoration:underline;text-underline-offset:3px}.train-map-panel{margin:10px 0 14px}.train-map-panel[hidden]{display:none}
+.board[data-train-map],.board[data-tracker-vehicle]{width:100%;text-align:left;border:1px solid #142640}.board .map-action{grid-column:1/-1;font-weight:650;color:#d6e4f5}.board[data-tracker-vehicle]{text-decoration:none;font-weight:700}.board[data-tracker-vehicle] .map-action{text-decoration:underline;text-underline-offset:3px}.train-map-panel{margin:10px 0 14px}.train-map-panel[hidden]{display:none}
 .train-diagram{max-height:440px;overflow:auto;border:1px solid #d5dce6;border-radius:12px}
 .train-strip{position:relative;list-style:none;margin:0;padding:8px 12px}
 .train-strip::before{content:'';position:absolute;left:31px;top:14px;bottom:14px;width:16px;border-radius:12px;background:var(--strip-colour)}
@@ -316,12 +316,16 @@ function stopId(point){
  if(/^490/.test(point?.individualStopId??''))return point.individualStopId;
  return point?.naptanId||point?.individualStopId;
 }
-function busTrackerUrl(leg,index,vehicle){
+function trackerUrl(leg,index,vehicle){
+ const mode=leg.mode.id,line=lineId(leg);
+ if(!line||!['bus','tube','overground','elizabeth-line'].includes(mode))return '';
  const url=new URL('https://jasontinuk-8.github.io/london-bus-tracker/');
  const direction=(vehicle?.direction||leg.routeOptions?.[0]?.direction)?.toLowerCase();
  for(const [key,value] of Object.entries({
-  bus:lineId(leg), returnSite:'github', returnLeg:String(index), direction:['inbound','outbound'].includes(direction)?direction:'',
-  stop:stopId(leg.departurePoint), alight:stopId(leg.arrivalPoint), vehicle:vehicle?.vehicleId
+  ...(mode==='bus'?{bus:line}:{mode,line}), returnSite:'github',returnLeg:String(index),
+  direction:['inbound','outbound'].includes(direction)?direction:'',
+  stop:stopId(leg.departurePoint),alight:stopId(leg.arrivalPoint),
+  vehicle:vehicle?.vehicleId,terminal:vehicle?.destinationNaptanId
  })){
   if(value)url.searchParams.set(key,value);
  }
@@ -565,6 +569,77 @@ function railRouteSequences(line,direction){
  return railSequenceCache.get(key);
 }
 const stopMaps=new Set();
+function pointPosition(point){
+ return Number.isFinite(point?.lat)&&Number.isFinite(point?.lon)?[point.lat,point.lon]:null;
+}
+function walkingMapUrl(leg){
+ const endpoints=[leg.departurePoint,leg.arrivalPoint].map(point=>{
+  const position=pointPosition(point);
+  return position?position.join(','):point?.commonName?.trim();
+ });
+ if(!endpoints.every(Boolean))return '';
+ const [origin,destination]=endpoints.map(encodeURIComponent);
+ return 'https://www.google.com/maps/dir/?api=1&travelmode=walking&origin='+origin+'&destination='+destination;
+}
+function legTrack(leg){
+ try{
+  const value=leg.path?.lineString;
+  const points=typeof value==='string'?JSON.parse(value):value;
+  if(Array.isArray(points))return points.filter(point=>Array.isArray(point)&&point.length===2&&point.every(Number.isFinite));
+ }catch{}
+ return [];
+}
+function createRouteMap(box,bounds){
+ const map=L.map(box,{scrollWheelZoom:false}).fitBounds(bounds,{padding:[24,24],maxZoom:15});
+ box.railMap=map;
+ stopMaps.add(map);
+ L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,
+  attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'}).addTo(map);
+ return map;
+}
+function showJourneyMap(details,journey){
+ if(!details.open)return;
+ const box=details.querySelector('.stops-map');
+ if(box.railMap){box.railMap.invalidateSize();return;}
+ const note=details.querySelector('[data-map-note]');
+ if(!window.L){
+  box.hidden=true;
+  note.textContent=tr('暫時載入唔到地圖。','Map unavailable.');
+  return;
+ }
+ const segments=journey.legs.map(leg=>{
+  const endpoints=[leg.departurePoint,leg.arrivalPoint];
+  const positions=endpoints.map(pointPosition);
+  const track=legTrack(leg);
+  const walk=walkingLeg(leg);
+  const colour=walk?'#43566e':nationalRailLeg(leg)?'#8a243b':lineStyle(lineId(leg))[0];
+  return {points:track.length>1?track:positions.filter(Boolean),positions,endpoints,colour,walk,approximate:track.length<2};
+ });
+ const bounds=segments.flatMap(segment=>[...segment.points,...segment.positions.filter(Boolean)]);
+ if(!bounds.length){
+  box.hidden=true;
+  note.textContent=tr('呢個行程暫時未有地圖座標。','Map coordinates are unavailable for this journey.');
+  return;
+ }
+ const map=createRouteMap(box,bounds);
+ const markers=new Map();
+ for(const {points,positions,endpoints,colour,walk,approximate} of segments){
+  if(points.length>1){
+   L.polyline(points,{color:'#fff',weight:9,opacity:0.85,interactive:false}).addTo(map);
+   L.polyline(points,{color:colour,weight:5,dashArray:approximate?'2 8':walk?'8 7':null}).addTo(map);
+  }
+  positions.forEach((point,index)=>{
+   if(point)markers.set(point.join(','),{point,name:endpoints[index]?.commonName});
+  });
+ }
+ for(const {point,name} of markers.values()){
+  const marker=L.circleMarker(point,{radius:5,color:'#142640',weight:2,fillColor:'#fff',fillOpacity:1}).addTo(map);
+  if(name)marker.bindTooltip(html(name));
+ }
+ const key=segments.some(segment=>segment.walk)?[tr('虛線代表步行。','Dashed lines show walking.')]:[];
+ if(segments.some(segment=>segment.approximate))key.push(tr('部分路段只有約略位置，或未能畫出。','Some sections are approximate or unavailable.'));
+ note.textContent=key.join(' ');
+}
 function showStopMap(details,leg){
  if(!details.open)return;
  const box=details.querySelector('.stops-map');
@@ -575,24 +650,15 @@ function showStopMap(details,leg){
   note.textContent=tr('暫時載入唔到地圖。','Map unavailable.');
   return;
  }
- let track=[];
- try{
-  const points=JSON.parse(leg.path?.lineString??'[]');
-  if(Array.isArray(points))track=points.filter(point=>Array.isArray(point)&&point.length===2&&point.every(Number.isFinite));
- }catch{}
- function position(stop){return Number.isFinite(stop?.lat)&&Number.isFinite(stop?.lon)?[stop.lat,stop.lon]:null;}
- const start=position(leg.departurePoint),end=position(leg.arrivalPoint);
+ const track=legTrack(leg);
+ const start=pointPosition(leg.departurePoint),end=pointPosition(leg.arrivalPoint);
  const bounds=track.length?[...track,...[start,end].filter(Boolean)]:[start,end].filter(Boolean);
  if(!bounds.length){
   box.hidden=true;
   note.textContent=tr('呢段車程暫時未有地圖座標。','Map coordinates are unavailable for this leg.');
   return;
  }
- const map=L.map(box,{scrollWheelZoom:false}).fitBounds(bounds,{padding:[24,24],maxZoom:15});
- box.railMap=map;
- stopMaps.add(map);
- L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,
-  attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'}).addTo(map);
+ const map=createRouteMap(box,bounds);
  const [colour]=lineStyle(lineId(leg));
  const seen=new Set();
  function marker(point,name,endpoint=false){
@@ -608,7 +674,7 @@ function showStopMap(details,leg){
  lineStops(lineId(leg)).then(stops=>{
   if(!stopMaps.has(map))return;
   const byId=new Map(stops.map(stop=>[stop.naptanId||stop.id,stop]));
-  for(const stop of leg.path?.stopPoints??[])marker(position(byId.get(stop.id)),clean(stop.name));
+  for(const stop of leg.path?.stopPoints??[])marker(pointPosition(byId.get(stop.id)),clean(stop.name));
  }).catch(()=>{});
 }
 function clearStopMaps(){
@@ -728,6 +794,7 @@ async function showNextTrains(details,leg,ready){
  }
 }
 function render(index=0){
+ const journeyMapOpen=result.querySelector('[data-journey-map]')?.open;
  clearStopMaps();
  activeJourney=index;
  saveJourney();
@@ -740,13 +807,14 @@ function render(index=0){
  result.innerHTML=`<section class="panel"><h2>${html(model.location?tr('目前位置','Current location'):model.from)} → ${html(model.to)}</h2>
  <p class="muted">${tr('約 ','About ')}${minutesLabel(journey.duration)} · ${!first?tr('步行','Walk'):transfers?tr('轉 '+transfers+' 次車',transfers+' '+(transfers===1?'change':'changes')):tr('直達','Direct')} · ${tr('預計 ','Arrive ')}${time(journey.arrivalDateTime)}${tr(' 到達','')}</p>
  ${timing?`<p class="muted">${timing.mode==='arriving'?tr('指定到達 ','Arrive by '):tr('指定出發 ','Depart at ')}${html(timing.date)} · ${html(timing.clock)} ${tr('（倫敦時間）','(London time)')}</p>`:''}
- <div class="tabs">${model.journeys.map((option,i)=>`<button type="button" data-plan="${i}" aria-pressed="${i===index}">${option.legs.every(walkingLeg)?tr('步行','Walk'):option.legs.filter(transitLeg).length===1?tr('直達','Direct'):tr((option.legs.filter(transitLeg).length-1)+' 次轉車',(option.legs.filter(transitLeg).length-1)+' change(s)')}${option.arrivalDateTime===model.earliest?tr(' · 最早到達',' · Earliest arrival'):''} · ${time(option.arrivalDateTime)}</button>`).join('')}</div></section>
+ <div class="tabs">${model.journeys.map((option,i)=>`<button type="button" data-plan="${i}" aria-pressed="${i===index}">${option.legs.every(walkingLeg)?tr('步行','Walk'):option.legs.filter(transitLeg).length===1?tr('直達','Direct'):tr((option.legs.filter(transitLeg).length-1)+' 次轉車',(option.legs.filter(transitLeg).length-1)+' change(s)')}${option.arrivalDateTime===model.earliest?tr(' · 最早到達',' · Earliest arrival'):''} · ${time(option.arrivalDateTime)}</button>`).join('')}</div>
+ <details class="journey-map-details" data-journey-map${journeyMapOpen?' open':''}><summary>${tr('睇全程地圖','Show full journey map')}</summary><div class="stops-map" role="region" aria-label="${tr('全程地圖','Full journey map')}"></div><p class="muted journey-map-key" data-map-note role="status"></p></details></section>
  ${first?`<div class="walk"><strong>${tr('上車站：','Board at ')}${html(stopName(first.departurePoint,first))}</strong>${walk?tr(' · 步行約 ',' · Walk about ')+minutesLabel(walk):''}</div>`:''}
  ${journey.legs.map((leg,legIndex)=>{
   const start=stopName(leg.departurePoint,leg),end=stopName(leg.arrivalPoint,leg);
   if(walkingLeg(leg)){
-   const steps=(leg.instruction?.steps??[]).map(step=>step.description).filter(Boolean);
-   return `<section class="walk"><strong>${tr('步行約 ','Walk about ')}${minutesLabel(leg.duration)}</strong>${leg.distance>0?' · '+html(leg.distance)+tr(' 米',' m'):''}${end?`<p>${[start,end].filter(Boolean).map(html).join(' → ')}</p>`:''}${steps.length?`<details><summary>${tr('步行指示','Walking directions')}</summary><ol>${steps.map(step=>'<li>'+html(step)+'</li>').join('')}</ol></details>`:''}</section>`;
+   const mapsUrl=walkingMapUrl(leg);
+   return `<section class="walk"><strong>${tr('步行約 ','Walk about ')}${minutesLabel(leg.duration)}</strong>${leg.distance>0?' · '+html(leg.distance)+tr(' 米',' m'):''}${end?`<p>${[start,end].filter(Boolean).map(html).join(' → ')}</p>`:''}${mapsUrl?`<a class="walk-map-link" href="${html(mapsUrl)}" target="_blank" rel="noopener noreferrer">${tr('用 Google Maps 睇步行路線','Walking directions in Google Maps')}</a>`:''}</section>`;
   }
   const route=leg.routeOptions?.[0],heads=headsigns(leg);
   const bus=leg.mode.id==='bus';
@@ -761,17 +829,21 @@ function render(index=0){
    ${bus&&leg.departurePoint?.stopLetter?`<p>${tr('站牌 ','Stop ')}${html(leg.departurePoint.stopLetter)}</p>`:leg.departurePoint?.platformName?`<p>${tr('月台 ','Platform ')}${html(leg.departurePoint.platformName)}</p>`:''}
    <details data-map-leg="${legIndex}"><summary>${tr('睇沿途車站同地圖','Show stops and map')}</summary><div class="stops-map" role="region" aria-label="${tr('沿途車站地圖','Map of stops')}"></div><p class="muted" data-map-note></p><ol>${[start,...stops,end].map(name=>'<li>'+html(name)+'</li>').join('')}</ol></details>
   </article>`;
+  const tracker=trackerUrl(leg,legIndex);
   return `<article class="leg" id="journey-leg-${legIndex}" data-transit-leg="${legIndex}" style="--line:${lineStyle(lineId(leg))[0]}">
    <p>${lineBadge(lineId(leg),label)}</p><h3>${tr('喺 ','Board at ')}${html(start)}${tr(' 上車','')}</h3>
    <p>${bus?tr('站牌','Stop'):tr('月台','Platform')} <strong data-platform>${html(boardingLabel(leg))}</strong></p>
-   ${bus?`<a class="board" data-tracker-bus href="${html(busTrackerUrl(leg,legIndex))}">`:`<button type="button" class="board" data-train-map aria-expanded="false" aria-controls="train-map-${legIndex}">`}<span class="board-heading">${bus?tr('下一班巴士','Next bus'):tr('下一班車','Next train')}</span><span><small>${tr('目的地','Destination')}</small><strong data-head>${html(heads.join(' / ')||tr('請睇站內顯示屏','Check the station display'))}</strong></span>
-   <span class="eta"><small>${tr('到站','Arrival')}</small><strong data-eta>${tr('查詢中…','Checking…')}</strong></span><small class="map-action">${bus?tr('喺 Tracker 睇巴士位置','See bus location in Tracker'):tr('睇列車位置','Show train location')}</small>${bus?'</a>':'</button>'}
-   ${bus?'':`<div class="train-map-panel" id="train-map-${legIndex}" hidden><p class="muted" data-train-location role="status"></p><div class="train-diagram" data-train-diagram role="region" tabindex="0" aria-label="${tr('列車位置路線圖','Train position diagram')}"></div></div>`}
+   ${tracker?`<a class="board" data-tracker-vehicle href="${html(tracker)}">`:`<button type="button" class="board" data-train-map aria-expanded="false" aria-controls="train-map-${legIndex}">`}<span class="board-heading">${bus?tr('下一班巴士','Next bus'):tr('下一班車','Next train')}</span><span><small>${tr('目的地','Destination')}</small><strong data-head>${html(heads.join(' / ')||tr('請睇站內顯示屏','Check the station display'))}</strong></span>
+   <span class="eta"><small>${tr('到站','Arrival')}</small><strong data-eta>${tr('查詢中…','Checking…')}</strong></span><small class="map-action">${bus?tr('喺 Tracker 睇巴士位置','See bus location in Tracker'):tracker?tr('喺 Tracker 睇列車位置','See train location in Tracker'):tr('睇列車位置','Show train location')}</small>${tracker?'</a>':'</button>'}
+   ${tracker?'':`<div class="train-map-panel" id="train-map-${legIndex}" hidden><p class="muted" data-train-location role="status"></p><div class="train-diagram" data-train-diagram role="region" tabindex="0" aria-label="${tr('列車位置路線圖','Train position diagram')}"></div></div>`}
    <p class="alight">${tr('喺 ','Get off at ')}${html(end)}${tr(' 落車','')}${hasChange?`<span class="interchange-time" data-interchange>${tr('預計到達轉車站','Expected at interchange')} · ${time(leg.arrivalTime)}</span>`:''}</p>
    <details class="next-trains" data-next-leg="${legIndex}"><summary>${bus?tr('睇之後幾班巴士','Next buses'):tr('睇下一班車','Next trains')}</summary><div data-train-list role="status"></div></details>
    <details data-map-leg="${legIndex}"><summary>${tr('睇沿途車站同地圖','Show stops and map')}</summary><div class="stops-map" role="region" aria-label="${tr('沿途車站地圖','Map of stops')}"></div><p class="muted" data-map-note></p><ol>${[start,...stops,end].map(name=>'<li>'+html(name)+'</li>').join('')}</ol></details></article>`;
  }).join('')}
  <p class="muted">${tr('資料由 Transport for London 提供 · 倫敦時間','Data from Transport for London · London time')}</p>`;
+ const journeyMap=result.querySelector('[data-journey-map]');
+ journeyMap.ontoggle=()=>showJourneyMap(journeyMap,journey);
+ if(journeyMap.open)showJourneyMap(journeyMap,journey);
  result.querySelectorAll('[data-plan]').forEach(button=>button.onclick=()=>{
   render(Number(button.dataset.plan));
   result.querySelector('[aria-pressed="true"]').focus();
@@ -798,8 +870,8 @@ function render(index=0){
   };
   const {train,arrival}=await prediction;
   if(version!==view)return;
-  const trackerLink=card.querySelector('[data-tracker-bus]');
-  if(trackerLink&&train)trackerLink.href=busTrackerUrl(leg,index,train);
+  const trackerLink=card.querySelector('[data-tracker-vehicle]');
+  if(trackerLink&&train)trackerLink.href=trackerUrl(leg,index,train);
   const interchange=card.querySelector('[data-interchange]');
   if(interchange)interchange.textContent=tr('預計到達轉車站','Expected at interchange')+' · '+londonTime.format(arrival);
   const eta=card.querySelector('[data-eta]');
