@@ -494,17 +494,17 @@ async function eligibleTrains(leg,lookup=arrivals,readyAt=Date.now()){
   /^At Platform\b/i.test(train.currentLocation??'')):[];
  const richmondRoutes=platformTrains.length?(await railRouteSequences(line,'outbound')).filter(ids=>ids[0]===start):[];
  const sharedStop=richmondRoutes.length>0&&richmondRoutes.every(ids=>ids.indexOf(end)>0);
- // DLR predictions can omit vehicle IDs. Check the terminal and direction against TfL's stop sequences.
- const dlrDirections=line==='dlr'?[...new Set(upcoming.filter(train=>!train.vehicleId)
-  .map(train=>train.direction).filter(direction=>direction==='inbound'||direction==='outbound'))]:[];
- const dlrRoutes=new Map(await Promise.all(dlrDirections.map(async direction=>
+ const matchingTrains=upcoming.filter(train=>clean(train.destinationName)&&train.destinationNaptanId!==start)
+  .map(train=>({...train,alightingPrediction:matchingArrival(train,Array.isArray(atEnd)?atEnd:[],line)}));
+ // A train can be predicted at boarding before TfL publishes its downstream call.
+ const directions=[...new Set(matchingTrains.filter(train=>!train.alightingPrediction&&train.destinationNaptanId&&train.destinationNaptanId!==end)
+  .map(train=>train.direction).filter(direction=>direction==='inbound'||direction==='outbound'))];
+ const routesByDirection=new Map(await Promise.all(directions.map(async direction=>
   [direction,await railRouteSequences(line,direction)])));
- const candidates=upcoming.filter(train=>{
-  if(!clean(train.destinationName))return false;
-  if(train.destinationNaptanId===start)return false;
-  if(train.destinationNaptanId===end)return true;
-  if(train.vehicleId)return Boolean(matchingArrival(train,Array.isArray(atEnd)?atEnd:[],line));
-  const routes=(dlrRoutes.get(train.direction)??[]).filter(ids=>ids.at(-1)===train.destinationNaptanId&&ids.includes(start));
+ const candidates=matchingTrains.filter(train=>{
+  if(train.alightingPrediction||train.destinationNaptanId===end)return true;
+  if(!train.destinationNaptanId)return false;
+  const routes=(routesByDirection.get(train.direction)??[]).filter(ids=>ids.at(-1)===train.destinationNaptanId&&ids.includes(start));
   return routes.length>0&&routes.every(ids=>ids.indexOf(end)>ids.indexOf(start));
  });
  return [...candidates,...(sharedStop?platformTrains.map(train=>({...train,atPlatform:true})):[])]
@@ -543,29 +543,34 @@ function journeyTimestamp(value){
  const offset=londonOffset.formatToParts(wallTime).find(part=>part.type==='timeZoneName')?.value.match(/([+-])(\d{2}):(\d{2})/);
  return offset?wallTime-(offset[1]==='+'?1:-1)*(Number(offset[2])*60+Number(offset[3]))*60000:wallTime;
 }
-function connectionPredictions(legs){
+function connectionPredictions(legs,plannedAt=Date.now()){
  const predictions=new Map();
  let previous=null,walking=0;
  for(const [index,leg] of legs.entries()){
   if(!transitLeg(leg)){walking+=(Number(leg.duration)||0)*60000;continue;}
   const connection=previous;
   const transferTime=connection?Math.max(60000,walking):walking;
-  const ready=(connection??Promise.resolve({arrival:Date.now()})).then(({arrival})=>arrival+transferTime);
+  const ready=(connection??Promise.resolve({arrival:plannedAt})).then(({arrival})=>arrival+transferTime);
   previous=ready.then(async readyAt=>{
    if(nationalRailLeg(leg)){
     const arrival=journeyTimestamp(leg.arrivalTime);
     return {arrival:Number.isFinite(arrival)?arrival:readyAt+(Number(leg.duration)||0)*60000};
    }
-   let [train]=await eligibleTrains(leg,arrivals,readyAt);
+   const requestedAt=Date.now();
+   const upcoming=await eligibleTrains(leg,arrivals,requestedAt);
+   const now=Date.now();
+   const cutoff=Math.max(now,readyAt);
+   const boardable=train=>!train.atPlatform||readyAt<=now;
+   const earlier=upcoming.find(train=>!train.atPlatform&&Date.parse(train.expectedArrival)>now&&Date.parse(train.expectedArrival)<=readyAt);
+   let train=upcoming.find(train=>boardable(train)&&Date.parse(train.expectedArrival)>cutoff);
    if(!train)[train]=await richmondScheduledTrains(leg,readyAt);
    const departure=journeyTimestamp(leg.departureTime);
    const scheduledArrival=journeyTimestamp(leg.arrivalTime);
    const rideTime=Number.isFinite(scheduledArrival-departure)?Math.max(0,scheduledArrival-departure):(Number(leg.duration)||0)*60000;
-   const end=stopId(leg.arrivalPoint);
-   const live=train?.alightingPrediction??(train&&end&&leg.mode?.id!=='bus'?matchingArrival(train,await arrivals(end),lineId(leg)):null);
+   const live=train?.alightingPrediction;
    const leave=train?Date.parse(train.expectedArrival):Math.max(readyAt,Number.isFinite(departure)?departure:readyAt);
    const arrival=live?Date.parse(live.expectedArrival):Number.isFinite(train?.arrivalTime)?train.arrivalTime:leave+rideTime;
-   return {train,arrival};
+   return {train,arrival,earlier,readyAt};
   });
   predictions.set(index,{ready,trip:previous});
   walking=0;
@@ -812,6 +817,7 @@ function render(index=0){
  const journeyMapOpen=result.querySelector('[data-journey-map]')?.open;
  clearStopMaps();
  activeJourney=index;
+ model.plannedAt??=Date.now();
  saveJourney();
  const version=++view;
  const journey=model.journeys[index],first=journey.legs.find(transitLeg);
@@ -852,6 +858,7 @@ function render(index=0){
    ${tracker?`<a class="board" data-tracker-vehicle href="${html(tracker)}">`:`<button type="button" class="board" data-train-map aria-expanded="false" aria-controls="train-map-${legIndex}">`}<span class="board-heading">${bus?tr('下一班巴士','Next bus'):tr('下一班車','Next train')}</span><span><small>${tr('目的地','Destination')}</small><strong data-head>${html(heads.join(' / ')||tr('請睇站內顯示屏','Check the station display'))}</strong></span>
    <span class="eta"><small>${tr('到站','Arrival')}</small><strong data-eta>${tr('查詢中…','Checking…')}</strong></span><small class="map-action">${bus?tr('喺 Tracker 睇巴士位置','See bus location in Tracker'):tracker?tr('喺 Tracker 睇列車位置','See train location in Tracker'):tr('睇列車位置','Show train location')}</small>${tracker?'</a>':'</button>'}
    ${tracker?'':`<div class="train-map-panel" id="train-map-${legIndex}" hidden><p class="muted" data-train-location role="status"></p><div class="train-diagram" data-train-diagram role="region" tabindex="0" aria-label="${tr('列車位置路線圖','Train position diagram')}"></div></div>`}
+   <p class="muted" data-earlier-service hidden></p>
    <p class="alight">${tr('喺 ','Get off at ')}${html(end)}${tr(' 落車','')}${hasChange?`<span class="interchange-time" data-interchange>${tr('預計到達轉車站','Expected at interchange')} · ${time(leg.arrivalTime)}</span>`:''}</p>
    <details class="next-trains" data-next-leg="${legIndex}"><summary>${bus?tr('睇之後幾班巴士','Next buses'):tr('睇下一班車','Next trains')}</summary><div data-train-list role="status"></div></details>
    <details data-map-leg="${legIndex}"><summary>${tr('睇沿途車站同地圖','Show stops and map')}</summary><div class="stops-map" role="region" aria-label="${tr('沿途車站地圖','Map of stops')}"></div><p class="muted" data-map-note></p><ol>${[start,...stops,end].map(name=>'<li>'+html(name)+'</li>').join('')}</ol></details></article>`;
@@ -888,12 +895,20 @@ function render(index=0){
  async function updateLiveCard(card,current){
   const index=Number(card.dataset.transitLeg);
   const leg=journey.legs[index];
-  const {train,arrival}=await current.get(index).trip;
+  const {train,arrival,earlier,readyAt}=await current.get(index).trip;
   if(version!==view||predictions!==current)return;
   const trackerLink=card.querySelector('[data-tracker-vehicle]');
   if(trackerLink)trackerLink.href=trackerUrl(leg,index,train);
   const interchange=card.querySelector('[data-interchange]');
   if(interchange)interchange.textContent=tr('預計到達轉車站','Expected at interchange')+' · '+londonTime.format(arrival);
+  const note=card.querySelector('[data-earlier-service]');
+  note.hidden=!earlier;
+  if(earlier){
+   const earlierTime=londonTime.format(Date.parse(earlier.expectedArrival));
+   const boardingTime=londonTime.format(readyAt);
+   note.textContent=tr('較早一班 '+earlierTime+' 到站。預計你 '+boardingTime+' 先到上車站，趕唔切。',
+    'An earlier service arrives at '+earlierTime+'. You’re expected at the boarding stop at '+boardingTime+', too late to catch it.');
+  }
   const eta=card.querySelector('[data-eta]');
   eta.previousElementSibling.textContent=tr('到站','Arrival');
   card.querySelector('[data-platform]').textContent=boardingLabel(leg,train);
@@ -923,7 +938,7 @@ function render(index=0){
   refreshing=true;
   try{
    arrivalsCache.clear();
-   predictions=connectionPredictions(journey.legs);
+   predictions=connectionPredictions(journey.legs,model.plannedAt);
    await Promise.allSettled(liveCards.map(card=>updateLiveCard(card,predictions)));
   }finally{refreshing=false;}
  }
@@ -937,6 +952,7 @@ async function plan(event){
   mode:journeyTimeMode.value,date:journeyDate.value,clock:journeyTime.value
  };
  const scheduleParams=journeyTimeParams(timing);
+ const plannedAt=Date.now();
  const version=++request;
  clearInterval(journeyRefreshTimer);
  clearStopMaps();
@@ -967,7 +983,7 @@ async function plan(event){
   const walkOnly=options.find(option=>option.legs.every(walkingLeg));
   const journeys=[...new Set([options[0],direct[0],walkOnly,...options].filter(Boolean))].slice(0,3);
   journeyEndpoints=[from,to];
-  model={from:from.name,to:to.name,location:from.location,journeys,earliest:options[0].arrivalDateTime,timing};
+  model={from:from.name,to:to.name,location:from.location,journeys,earliest:options[0].arrivalDateTime,timing,plannedAt};
   render();
  }catch(error){
   if(version!==request)return;
