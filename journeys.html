@@ -458,10 +458,13 @@ async function eligibleBuses(leg,lookup,readyAt){
  return matches.filter(({bus,alightingPrediction})=>{
   if(alightingPrediction||bus.destinationNaptanId===end)return true;
   const terminal=busHead(bus.destinationName);
+  // TfL reports "Kingston" on inbound 65 live arrivals and "Brook Street" in its stop sequence.
+  const terminalId=bus.destinationNaptanId||
+   (line==='65'&&bus.direction==='inbound'&&terminal==='kingston'?'490004478F':'');
   const paths=(sequences.get(bus.direction)??[]).filter(stops=>{
    const last=stops.at(-1);
    return stops.some(stop=>stop.id===start)&&
-    (bus.destinationNaptanId?last.id===bus.destinationNaptanId:terminal&&busHead(last.name)===terminal);
+    (terminalId?last.id===terminalId:terminal&&busHead(last.name)===terminal);
   });
   return paths.length>0&&paths.every(stops=>stops.findIndex(stop=>stop.id===end)>stops.findIndex(stop=>stop.id===start));
  }).map(({bus,alightingPrediction})=>({...bus,alightingPrediction}))
