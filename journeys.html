@@ -116,7 +116,10 @@ const londonTime=new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/London',hour:
 async function api(path,params={},signal){
  const url=new URL(path,'https://api.tfl.gov.uk/');
  url.search=new URLSearchParams(params);
- const response=await fetch(url,{signal:signal?AbortSignal.any([signal,AbortSignal.timeout(18000)]):AbortSignal.timeout(18000)});
+ const response=await fetch(url,{
+  cache:path.endsWith('/Arrivals')?'no-store':'default',
+  signal:signal?AbortSignal.any([signal,AbortSignal.timeout(18000)]):AbortSignal.timeout(18000)
+ });
  if(!response.ok)throw Error(String(response.status));
  return response.json();
 }
@@ -346,6 +349,7 @@ function journeyPath(from,to){
  return 'Journey/JourneyResults/'+encodeURIComponent(from)+'/to/'+encodeURIComponent(to);
 }
 let model,request=0,view=0,locationRequest=0,journeyEndpoints;
+let journeyRefreshTimer;
 const savedJourneyKey='london-transport-journey-v1';
 const clearJourneyButton=document.querySelector('#clear-journey');
 const journeyTimeMode=document.querySelector('#journey-time-mode');
@@ -390,6 +394,7 @@ function restoreJourney(){
  });
 }
 function clearJourney(){
+ clearInterval(journeyRefreshTimer);
  ++request;
  ++view;
  ++locationRequest;
@@ -803,6 +808,7 @@ async function showNextTrains(details,leg,ready){
  }
 }
 function render(index=0){
+ clearInterval(journeyRefreshTimer);
  const journeyMapOpen=result.querySelector('[data-journey-map]')?.open;
  clearStopMaps();
  activeJourney=index;
@@ -810,7 +816,7 @@ function render(index=0){
  const version=++view;
  const journey=model.journeys[index],first=journey.legs.find(transitLeg);
  const timing=model.timing;
- const predictions=timing?new Map():connectionPredictions(journey.legs);
+ let predictions;
  const transfers=Math.max(0,journey.legs.filter(transitLeg).length-1);
  const walk=first?journey.legs.slice(0,journey.legs.indexOf(first)).reduce((sum,leg)=>sum+(leg.duration||0),0):0;
  result.innerHTML=`<section class="panel"><h2>${html(model.location?tr('目前位置','Current location'):model.from)} → ${html(model.to)}</h2>
@@ -863,10 +869,10 @@ function render(index=0){
   details.ontoggle=()=>showNextTrains(details,journey.legs[index],predictions.get(index).ready);
  });
  result.querySelectorAll('[data-map-leg]').forEach(details=>details.ontoggle=()=>showStopMap(details,journey.legs[Number(details.dataset.mapLeg)]));
- result.querySelectorAll('[data-transit-leg]').forEach(async card=>{
+ const liveCards=[...result.querySelectorAll('[data-transit-leg]')];
+ liveCards.forEach(card=>{
   const index=Number(card.dataset.transitLeg);
   const leg=journey.legs[index];
-  const prediction=predictions.get(index).trip;
   const button=card.querySelector('[data-train-map]');
   const panel=card.querySelector('.train-map-panel');
   if(button)button.onclick=async()=>{
@@ -875,20 +881,26 @@ function render(index=0){
    if(panel.hidden)return;
    const note=panel.querySelector('[data-train-location]');
    if(!note.textContent)note.textContent=tr('查詢車輛位置…','Finding vehicle position…');
-   const {train}=await prediction;
+   const {train}=await predictions.get(index).trip;
    if(version===view&&!panel.hidden)await showTrainMap(panel,leg,train,version);
   };
-  const {train,arrival}=await prediction;
-  if(version!==view)return;
+ });
+ async function updateLiveCard(card,current){
+  const index=Number(card.dataset.transitLeg);
+  const leg=journey.legs[index];
+  const {train,arrival}=await current.get(index).trip;
+  if(version!==view||predictions!==current)return;
   const trackerLink=card.querySelector('[data-tracker-vehicle]');
-  if(trackerLink&&train)trackerLink.href=trackerUrl(leg,index,train);
+  if(trackerLink)trackerLink.href=trackerUrl(leg,index,train);
   const interchange=card.querySelector('[data-interchange]');
   if(interchange)interchange.textContent=tr('預計到達轉車站','Expected at interchange')+' · '+londonTime.format(arrival);
   const eta=card.querySelector('[data-eta]');
+  eta.previousElementSibling.textContent=tr('到站','Arrival');
+  card.querySelector('[data-platform]').textContent=boardingLabel(leg,train);
+  card.querySelector('[data-head]').textContent=train?trainDestination(train):
+   headsigns(leg).join(' / ')||tr('請睇站內顯示屏','Check the station display');
   if(!train){eta.textContent=tr('暫無即時預測','No live prediction');return;}
   const expected=new Date(train.expectedArrival);
-  card.querySelector('[data-platform]').textContent=boardingLabel(leg,train);
-  card.querySelector('[data-head]').textContent=trainDestination(train);
   if(train.scheduled){
    eta.previousElementSibling.textContent=tr('預定開車','Scheduled departure');
    eta.textContent=londonTime.format(expected);
@@ -896,13 +908,27 @@ function render(index=0){
   }
   if(train.atPlatform)eta.previousElementSibling.textContent=tr('狀態','Status');
   function tick(){
-   if(version!==view)return;
+   if(version!==view||predictions!==current)return;
    const minutes=Math.ceil((expected.getTime()-Date.now())/60000);
-   eta.textContent=minutes>0?(train.atPlatform?tr('已在月台','At platform'):londonTime.format(expected)+' · '+minutesLabel(minutes)):tr('請睇站內顯示屏','Check the station display');
+   eta.textContent=minutes>0?(train.atPlatform?tr('已在月台','At platform'):londonTime.format(expected)+' · '+minutesLabel(minutes)):
+    leg.mode.id==='bus'?tr('即將到站','Due'):tr('請睇站內顯示屏','Check the station display');
    if(minutes>0)setTimeout(tick,1000);
   }
   tick();
- });
+ }
+ if(!liveCards.length)return;
+ let refreshing=false;
+ async function refreshPredictions(initial=false){
+  if(refreshing||(!initial&&document.hidden)||version!==view)return;
+  refreshing=true;
+  try{
+   arrivalsCache.clear();
+   predictions=connectionPredictions(journey.legs);
+   await Promise.allSettled(liveCards.map(card=>updateLiveCard(card,predictions)));
+  }finally{refreshing=false;}
+ }
+ refreshPredictions(true);
+ journeyRefreshTimer=setInterval(refreshPredictions,30000);
 }
 async function plan(event){
  event?.preventDefault();
@@ -912,6 +938,7 @@ async function plan(event){
  };
  const scheduleParams=journeyTimeParams(timing);
  const version=++request;
+ clearInterval(journeyRefreshTimer);
  clearStopMaps();
  model=null;
  ++view;
