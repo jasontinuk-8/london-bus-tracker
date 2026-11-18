@@ -32,13 +32,13 @@ main:has(.field:focus-within){padding-bottom:max(64px,var(--search-space,0px))}
 .station-lines{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px}.station-lines[hidden]{display:none}.station-line{display:inline-block;border-radius:3px;padding:2px 6px;font-size:12px;font-weight:750;line-height:1.4}
 .board .board-heading{grid-column:1/-1;font-size:17px;font-weight:800}
 .interchange-time{display:block;margin-top:4px;font-weight:650}
-.planner-actions{display:flex;gap:8px;margin-top:14px}.planner-actions .primary{width:auto;flex:1;margin-top:0}.tracker-link{display:inline-block;color:#fff;margin-top:4px;text-underline-offset:3px}
+.planner-actions{display:flex;gap:8px;margin-top:14px}.planner-actions .primary{width:auto;flex:1;margin-top:0}.tracker-link{display:inline-block;color:#fff;margin-top:4px;text-underline-offset:3px}.quick-link{margin-inline-start:12px}
 .journey-timing{min-width:0;border:1px solid #d5dce6;border-radius:10px;margin:14px 0 0;padding:10px}
 .journey-timing legend{font-weight:750}.journey-timing select,.journey-timing input{min-width:0;width:100%;min-height:44px;font:inherit;color:inherit;background:#fff;border:1px solid #aab6c8;border-radius:8px;padding:8px}
 .timing-inputs{margin-top:8px;grid-template-columns:repeat(2,minmax(0,1fr))}.timing-inputs[hidden]{display:none}
 </style>
 <main>
-<header><div class="locale" role="group" aria-label="Language"><button type="button" data-lang="zh" lang="zh-Hant">中</button> <button type="button" data-lang="en" lang="en">ENG</button></div><h1><span data-label="0">倫敦交通行程</span></h1><p><span data-label="1">規劃倫敦巴士、Tube、Overground、Elizabeth line、DLR、National Rail 同步行行程。</span></p><a class="tracker-link" href="https://jasontinuk-8.github.io/london-bus-tracker/" data-tracker>倫敦交通追蹤</a></header>
+<header><div class="locale" role="group" aria-label="Language"><button type="button" data-lang="zh" lang="zh-Hant">中</button> <button type="button" data-lang="en" lang="en">ENG</button></div><h1><span data-label="0">倫敦交通行程</span></h1><p><span data-label="1">規劃倫敦巴士、Tube、Overground、Elizabeth line、DLR、National Rail 同步行行程。</span></p><a class="tracker-link" href="https://jasontinuk-8.github.io/london-bus-tracker/" data-tracker>倫敦交通追蹤</a> <a class="tracker-link quick-link" href="./quick-journey.html" data-quick-journey>一句查路線</a></header>
 <form class="panel" id="planner">
  <div class="fields station-fields">
   <fieldset><legend data-label="2"></legend>
@@ -83,6 +83,7 @@ let activeJourney=0;
 function applyLanguage(){
  document.documentElement.lang=tr('zh-Hant','en');
  document.querySelector('[data-tracker]').textContent=tr('倫敦交通追蹤','London Transport Tracker');
+ document.querySelector('[data-quick-journey]').textContent=tr('一句查路線','Quick journey search');
  document.title=tr(...labels[0]);
  document.querySelectorAll('[data-label]').forEach(el=>el.textContent=tr(...labels[Number(el.dataset.label)]));
  document.querySelectorAll('[data-lang]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.lang===language)));
@@ -1012,9 +1013,44 @@ document.querySelectorAll('[data-lang]').forEach(button=>button.onclick=()=>{
  try{localStorage.setItem('rail-journey-language',language);}catch{}
  applyLanguage();
 });
+function loadQuickJourney(){
+ const pageUrl=new URL(location.href);
+ if(pageUrl.searchParams.get('quick')!=='1')return false;
+ pageUrl.searchParams.delete('quick');
+ history.replaceState(history.state,'',pageUrl);
+ let quick;
+ try{
+  const payload=sessionStorage.getItem('quick-journey-request-v1');
+  sessionStorage.removeItem('quick-journey-request-v1');
+  quick=JSON.parse(payload);
+ }catch{}
+ const validStation=point=>typeof point?.id==='string'&&/^[A-Z0-9:-]{3,40}$/i.test(point.id)
+  &&typeof point.name==='string'&&point.name.trim().length>0&&point.name.length<=200;
+ const coords=typeof quick?.from?.id==='string'&&quick.from.id.match(/^(-?\d{1,2}(?:\.\d+)?),(-?\d{1,3}(?:\.\d+)?)$/);
+ const currentPosition=quick?.from?.location===true&&coords&&Math.abs(Number(coords[1]))<=90&&Math.abs(Number(coords[2]))<=180;
+ if(!(currentPosition||validStation(quick?.from))||!validStation(quick.to)){
+  result.textContent=tr('未能載入一句查路線嘅搜尋。可以喺上面重新輸入。','Could not open the quick search. Enter your journey above.');
+  return false;
+ }
+ fields[0].selected=currentPosition?{id:quick.from.id,name:tr('目前位置','Current location'),location:true}:
+  {id:quick.from.id,name:quick.from.name};
+ fields[1].selected={id:quick.to.id,name:quick.to.name};
+ for(const field of fields)field.input.value=field.selected.name;
+ const timing=quick.timing;
+ if(timing&&['departing','arriving'].includes(timing.timeIs)&&/^\d{8}$/.test(timing.date)&&/^\d{4}$/.test(timing.time)){
+  journeyDate.value=timing.date.replace(/^(\d{4})(\d{2})(\d{2})$/,'$1-$2-$3');
+  journeyTime.value=timing.time.replace(/^(\d{2})(\d{2})$/,'$1:$2');
+  if(journeyDate.value&&journeyTime.value){
+   journeyTimeMode.value=timing.timeIs;
+   changeJourneyTimeMode();
+  }
+ }
+ return true;
+}
 const returningToJourney=/^#journey-leg-\d+$/.test(location.hash);
 if(returningToJourney)restoreJourney();
 applyLanguage();
+if(!returningToJourney&&loadQuickJourney())plan();
 if(returningToJourney&&model){
  requestAnimationFrame(()=>document.getElementById(location.hash.slice(1))?.scrollIntoView());
 }
