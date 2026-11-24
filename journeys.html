@@ -80,6 +80,7 @@ main:has(.field:focus-within){padding-bottom:max(64px,var(--search-space,0px))}
 <section id="result" aria-label="行程結果"></section>
 </main>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="./stop-search.js"></script>
 <script>
 let language='zh';
 try{if(localStorage.getItem('rail-journey-language')==='en')language='en';}catch{}
@@ -147,7 +148,7 @@ function stationLabel(stop){
  if(code)return name+' · '+code;
  if(!busStop(stop))return name;
  const letter=stationDetails.get(stop.id)?.stopLetter||stop.stopLetter;
- return letter?stopLetterLabel(name,letter):name+tr(' · 巴士站',' · Bus stop');
+ return TransportStops.describe({...stop,...stationDetails.get(stop.id),name,stopLetter:letter},language,false);
 }
 async function stations(query,signal){
  const search=query.toLowerCase();
@@ -166,7 +167,7 @@ async function stations(query,signal){
   const key=busStop(stop)?stop.id:stationCode(stop)||stop.id;
   if(!grouped.has(key))grouped.set(key,stop);
  }
- return [...grouped.values()];
+ return TransportStops.enrich([...grouped.values()],signal);
  function rank(stop){
   const name=clean(stop.name).toLowerCase(),code=stationCode(stop).toLowerCase();
   return name===search||code===search?0:name.startsWith(search)?1:code.startsWith(search)?2:3;
@@ -211,6 +212,7 @@ function lineBadge(id,label){
 }
 const stationDetails=new Map();
 async function loadStationDetails(stops,signal){
+ for(const stop of stops)if(stop.detailsLoaded)stationDetails.set(stop.id,stop);
  const missing=[...new Set(stops.filter(stop=>!stationDetails.has(stop.id)&&(!Array.isArray(stop.lines)||busStop(stop)))
   .map(stop=>stop.id))];
  if(missing.length){
@@ -238,14 +240,13 @@ function populateStationLines(rows){
   for(const line of [...(detail.lines??[]),...(detail.children??[]).flatMap(child=>child.lines??[])]){
    if(Object.hasOwn(stationLineStyles,line.id)||isBusRoute(line.id))lines.set(line.id,line);
   }
-  for(const line of [...lines.values()].sort((a,b)=>Number(isBusRoute(a.id))-Number(isBusRoute(b.id))||a.name.localeCompare(b.name,'en',{numeric:true})).slice(0,10)){
+  for(const line of [...lines.values()].sort((a,b)=>Number(isBusRoute(a.id))-Number(isBusRoute(b.id))||a.name.localeCompare(b.name,'en',{numeric:true}))){
    const badge=document.createElement('span');
    badge.className='station-line';
    [badge.style.backgroundColor,badge.style.color]=lineStyle(line.id);
    badge.textContent=line.name;
    badges.append(badge);
   }
-  if(lines.size>10){const more=document.createElement('span');more.textContent='+'+(lines.size-10);badges.append(more);}
   badges.hidden=!lines.size;
  }
 }

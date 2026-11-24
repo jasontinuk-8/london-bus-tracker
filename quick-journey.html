@@ -16,7 +16,7 @@ h1{font-size:clamp(30px,7vw,45px);margin:7px 0 10px;letter-spacing:-.045em;line-
 p{margin:0;line-height:1.55}header p{color:#dce8f8}.brand{font-size:.86rem;letter-spacing:.07em;font-weight:720}
 section,form{background:white;border:1px solid var(--line);border-radius:18px;padding:clamp(16px,4vw,24px);margin-bottom:14px}
 label{font-weight:750}textarea,button{font:inherit}textarea{resize:vertical;width:100%;min-height:88px;border:1px solid #94a6bc;border-radius:12px;margin:8px 0 10px;padding:12px;color:inherit;background:white}
-button{border:1px solid #a9b8cb;background:white;color:inherit;border-radius:10px;min-height:44px;cursor:pointer;padding:8px 12px;text-align:left}
+button{max-width:100%;min-width:0;white-space:normal;overflow-wrap:anywhere;border:1px solid #a9b8cb;background:white;color:inherit;border-radius:10px;min-height:44px;cursor:pointer;padding:8px 12px;text-align:left}
 button.primary{display:block;width:100%;background:#194f98;color:white;border-color:#194f98;text-align:center;font-weight:750}
 button:disabled{opacity:.65;cursor:wait}button:hover:not(:disabled){border-color:#194f98}button:focus-visible,textarea:focus-visible{outline:3px solid #226cc7;outline-offset:2px}
 .examples{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}.examples button{font-size:.9rem}.status{margin:0 0 14px;color:#5a3200}.status:empty{display:none}
@@ -49,6 +49,7 @@ input,button{min-height:44px;font:inherit}#startRecovery{display:grid;gap:8px;ma
 </section>
 <footer>交通資料由 <a href="https://tfl.gov.uk/">Transport for London</a> 提供 · 倫敦時間</footer>
 </main>
+<script src="./stop-search.js"></script>
 <script type="module">
 const londonDate = new Intl.DateTimeFormat('en-GB', {
   timeZone: 'Europe/London', year: 'numeric', month: '2-digit', day: '2-digit',
@@ -153,20 +154,17 @@ function stationRank(name, search) {
 async function findStations(query, signal) {
   const data = await api('StopPoint/Search/' + encodeURIComponent(query), {modes:modes.join(','), maxResults:30}, signal);
   const search = query.toLowerCase();
-  const unique = new Map();
-  for (const stop of data.matches ?? []) {
-    if (!stop.id || !stop.name) continue;
-    const served = stop.modes?.filter(mode => modes.includes(mode)) ?? [];
-    if (!served.length) continue;
-    const busOnly = served.length === 1 && served[0] === 'bus';
-    const id = busOnly && /^490(?!G)/i.test(stop.id) ? stop.id : stop.icsId || stop.id;
-    const key = busOnly ? stop.topMostParentId || stop.id : id + '|' + stop.name.toLowerCase();
-    const candidate = {id, name:stop.name, modes:served, rank:stationRank(stop.name, search)};
-    if (!unique.has(key) || candidate.rank < unique.get(key).rank) {
-      unique.set(key, busOnly && stop.topMostParentId?.startsWith('490G') ? {...candidate, id:stop.topMostParentId} : candidate);
-    }
+  const options=await TransportStops.enrich((data.matches??[]).filter(stop=>stop.id&&stop.name&&stop.modes?.some(mode=>modes.includes(mode))),signal);
+  const unique=new Map();
+  for(const stop of options){
+    const served=stop.modes.filter(mode=>modes.includes(mode));
+    const busOnly=TransportStops.busOnly(stop);
+    const id=busOnly?stop.id:stop.icsId||stop.icsCode||stop.id;
+    const key=busOnly?stop.id:id+'|'+stop.name.toLowerCase();
+    const candidate={...stop,id,modes:served,display:busOnly?TransportStops.describe(stop,'zh',false):stop.name,rank:stationRank(stop.name,search)};
+    if(!unique.has(key)||candidate.rank<unique.get(key).rank)unique.set(key,candidate);
   }
-  return [...unique.values()].sort((a,b) => a.rank - b.rank || a.name.localeCompare(b.name)).slice(0,8);
+  return [...unique.values()].sort((a,b)=>a.rank-b.rank||a.name.localeCompare(b.name)).slice(0,12);
 }
 
 function showParsing(state) {
@@ -174,7 +172,7 @@ function showParsing(state) {
   endpoints.replaceChildren();
   for (const [key, label] of [['from','出發地'], ['to','目的地']]) {
     const item = element('div', undefined, 'endpoint');
-    item.append(element('span', label), element('strong', state.selected[key]?.name ?? state.parsed[key] ?? '目前位置'));
+    item.append(element('span', label), element('strong', state.selected[key]?.display ?? state.selected[key]?.name ?? state.parsed[key] ?? '目前位置'));
     endpoints.append(item);
   }
   const value = state.parsed.timing;
@@ -207,7 +205,7 @@ function selectStations(state) {
   const title = element('strong', key === 'from' ? '揀出發站' : '揀目的地');
   choices.append(title);
   for (const candidate of candidates) {
-    const button = element('button', candidate.name);
+    const button = element('button', TransportStops.busOnly(candidate)?TransportStops.describe(candidate,'zh'):candidate.name);
     button.type = 'button';
     button.append(element('small', candidate.modes.map(mode => modeNames[mode]).join(' · ')));
     button.onclick = () => {
