@@ -22,35 +22,99 @@ button:disabled{opacity:.65;cursor:wait}button:hover:not(:disabled){border-color
 .examples{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}.examples button{font-size:.9rem}.status{margin:0 0 14px;color:#5a3200}.status:empty{display:none}
 .endpoints,.station-options{display:grid;gap:10px}.endpoints{grid-template-columns:repeat(2,minmax(0,1fr));margin-bottom:12px}
 .endpoint{background:#eef4fc;border-radius:12px;padding:12px;overflow-wrap:anywhere}.endpoint span,small,.muted{color:var(--muted)}
-small,.endpoint span{display:block;font-size:.85rem}.timing{margin-bottom:12px}header nav{display:flex;gap:16px;margin-top:14px}header nav a{color:#fff;text-underline-offset:3px}
+small,.endpoint span{display:block;font-size:.85rem}.timing{margin-bottom:12px}header nav{display:flex;flex-wrap:wrap;gap:16px;margin-top:14px}header nav a{color:#fff;text-underline-offset:3px}
 footer{font-size:.85rem;color:var(--muted)}footer a{color:var(--blue)}
 [hidden]{display:none!important}
 input,button{min-height:44px;font:inherit}#startRecovery{display:grid;gap:8px;margin-top:12px}#startRecovery input{width:100%;min-width:0;border:1px solid #94a6bc;border-radius:8px;padding:10px}@media(max-width:420px){.endpoints{grid-template-columns:1fr}}
+.locale{text-align:right}.locale button{min-height:44px;border:1px solid #aab6c8;border-radius:10px;padding:10px 12px;background:#fff;color:#172944;font:700 16px/1.5 system-ui,sans-serif}.locale button[aria-pressed=true]{background:#dbeafe}.locale :focus-visible{outline:3px solid #9ac7ff;outline-offset:2px}
 </style>
 <main>
-<header><p class="brand">LONDON JOURNEY</p><h1>一句查路線</h1><p>用廣東話或英文打一句，即可喺 Journey 查路線。</p><nav aria-label="倫敦交通"><a href="./journeys.html">Journey</a><a href="./">Tracker</a></nav></header>
+<header><div class="locale" role="group" aria-label="Language"><button type="button" data-lang="zh" lang="zh-Hant" aria-pressed="true">中</button> <button type="button" data-lang="en" lang="en" aria-pressed="false">ENG</button></div><p class="brand" data-i18n="brand">倫敦交通行程</p><h1 data-i18n="heading">一句查路線</h1><p data-i18n="intro">用廣東話或英文打一句，即可喺 Journey 查路線。</p><nav aria-label="倫敦交通" data-i18n-aria="navigation"><a href="./journeys.html" data-i18n="journeys">倫敦交通行程</a><a href="./" data-i18n="tracker">倫敦交通追蹤</a></nav></header>
 <form id="search-form">
- <label for="sentence">你想去邊？</label>
- <textarea id="sentence" maxlength="220" required placeholder="我想去 Waterloo" aria-describedby="location-hint"></textarea>
- <button class="primary" type="submit">查路線</button>
- <p id="location-hint" class="muted" style="margin-top:8px;font-size:.85rem">只打目的地時，頁面會請求定位，用你嘅位置向 TfL 查路線。</p>
- <div class="examples" aria-label="試用例句">
-  <button type="button">由 Durlston Road 去 Waterloo</button>
-  <button type="button">我喺 Richmond Station 等車，想去 Kingston</button>
-  <button type="button">聽朝九點由 Richmond 去 Victoria</button>
+ <label for="sentence" data-i18n="question">你想去邊？</label>
+ <textarea id="sentence" maxlength="220" required placeholder="我想去 Waterloo" data-i18n-placeholder="sentencePlaceholder" aria-describedby="location-hint"></textarea>
+ <button class="primary" type="submit" data-i18n="search">查路線</button>
+ <p id="location-hint" data-i18n="locationHint" class="muted" style="margin-top:8px;font-size:.85rem">只打目的地時，頁面會請求定位，用你嘅位置向 TfL 查路線。</p>
+ <div class="examples" aria-label="試用例句" data-i18n-aria="examples">
+  <button type="button" data-i18n="example1">由 Durlston Road 去 Waterloo</button>
+  <button type="button" data-i18n="example2">我喺 Richmond Station 等車，想去 Kingston</button>
+  <button type="button" data-i18n="example3">聽朝九點由 Richmond 去 Victoria</button>
  </div>
 </form>
 <p id="status" class="status" role="status"></p>
-<section id="stations" hidden aria-label="出發地同目的地">
+<section id="stations" hidden aria-label="出發地同目的地" data-i18n-aria="endpoints">
  <div class="endpoints" id="endpoints"></div>
  <p class="timing muted" id="timing" hidden></p>
  <div class="station-options" id="choices"></div>
- <div id="startRecovery" hidden><label for="startPoint">出發地 / Starting point</label><input id="startPoint" autocomplete="off" placeholder="例如 Richmond Station"><button id="useStart" type="button">用呢個起點 / Use this start</button></div>
+ <div id="startRecovery" hidden><label for="startPoint" data-i18n="startPoint">出發地</label><input id="startPoint" autocomplete="off" placeholder="例如 Richmond Station" data-i18n-placeholder="startPlaceholder"><button id="useStart" type="button" data-i18n="useStart">用呢個起點</button></div>
 </section>
-<footer>交通資料由 <a href="https://tfl.gov.uk/">Transport for London</a> 提供 · 倫敦時間</footer>
+<footer><span data-i18n="footerBefore">交通資料由 </span><a href="https://tfl.gov.uk/">Transport for London</a><span data-i18n="footerAfter"> 提供 · 倫敦時間</span></footer>
 </main>
 <script src="./stop-search.js"></script>
 <script type="module">
+const languageKey='bus-tracker-language';
+function readLanguage(){
+ try{
+  const saved=localStorage.getItem(languageKey);
+  if(saved==='zh'||saved==='en')return saved;
+  for(const key of ['bus65-language','rail-journey-language']){
+   const legacy=localStorage.getItem(key);
+   if(legacy==='zh'||legacy==='en'){try{localStorage.setItem(languageKey,legacy)}catch{}return legacy;}
+  }
+  localStorage.setItem(languageKey,'zh');
+ }catch{}
+ return 'zh';
+}
+function saveLanguage(value){try{localStorage.setItem(languageKey,value)}catch{}}
+let language=readLanguage();
+const messages={
+ title:['一句查路線 · London Journey','Quick journey search · London Journey'],
+ brand:['倫敦交通行程','LONDON JOURNEY'],heading:['一句查路線','Quick journey search'],
+ intro:['用廣東話或英文打一句，即可喺 Journey 查路線。','Type a sentence in Cantonese or English to find a route in Journey.'],
+ navigation:['倫敦交通','London transport'],journeys:['倫敦交通行程','London Transport Journeys'],tracker:['倫敦交通追蹤','London Transport Tracker'],
+ question:['你想去邊？','Where would you like to go?'],sentencePlaceholder:['我想去 Waterloo','I want to go to Waterloo'],search:['查路線','Find journey'],
+ locationHint:['只打目的地時，頁面會請求定位，用你嘅位置向 TfL 查路線。','If you only enter a destination, this page will ask for your location to find a route with TfL.'],
+ examples:['試用例句','Try an example'],example1:['由 Durlston Road 去 Waterloo','From Durlston Road to Waterloo'],
+ example2:['我喺 Richmond Station 等車，想去 Kingston','From Richmond Station to Kingston'],
+ example3:['聽朝九點由 Richmond 去 Victoria','09:00 from Richmond to Victoria'],
+ endpoints:['出發地同目的地','Starting point and destination'],from:['出發地','From'],to:['目的地','To'],
+ startPoint:['出發地','Starting point'],startPlaceholder:['例如 Richmond Station','For example, Richmond Station'],useStart:['用呢個起點','Use this start'],
+ footerBefore:['交通資料由 ','Transport data provided by '],footerAfter:[' 提供 · 倫敦時間',' · London time'],
+ currentLocation:['目前位置','Current location'],leaveNow:['而家出發','Leave now'],arriveBy:['到達期限 ','Arrive by '],departAt:['出發時間 ','Depart at '],
+ londonTime:['（倫敦時間）',' (London time)'],confirm:['確認並開啟 Journey','Confirm and open Journey'],confirmHint:['請確認出發地、目的地同時間。','Please confirm your starting point, destination and time.'],
+ chooseFrom:['揀出發站','Choose a starting stop or station'],chooseTo:['揀目的地','Choose a destination'],bus:['巴士','Bus'],
+ invalidTime:['時間格式有問題。試吓「聽朝九點」或「14:30」。','Invalid time. Try a time such as 09:00 or 14:30.'],
+ pastTime:['你揀嘅時間已經過咗。試吓加「聽日」。','That time has already passed. Please choose a future time.'],
+ missingDestination:['請補返目的地。','Please enter a destination.'],samePlace:['出發地同目的地要唔同。','Your starting point and destination must be different.'],
+ notFound:['搵唔到「{place}」。試吓用完整英文站名。','Could not find “{place}”. Try the full English stop or station name.'],
+ sameStation:['請揀兩個唔同嘅車站。','Please choose two different stops or stations.'],
+ handoffFailed:['瀏覽器未能交接搜尋。你可以用上面嘅「Journey」連結手動查路線。','Your browser could not pass this search to Journey. Use the London Transport Journeys link above to search manually.'],
+ opening:['開緊 Journey…','Opening Journey…'],locating:['搵緊你嘅目前位置…','Finding your current location…'],lookingUp:['查緊站名…','Looking up stops and stations…'],
+ stationsFailed:['暫時讀取唔到 TfL 站名。請再試。','Could not load stop and station names from TfL. Please try again.'],
+ startFailed:['暫時讀取唔到站名，請再試。','Could not load stop and station names. Please try again.'],
+ locationUnsupported:['呢個瀏覽器未能定位。請輸入出發地，或者打「由［出發地］去［目的地］」。','Location is unavailable in this browser. Enter a starting point below, or type “from [start] to [destination]”.'],
+ locationDenied:['瀏覽器未有定位權限。請輸入出發地，或者打「由［出發地］去［目的地］」。','Location permission was refused. Enter a starting point below, or type “from [start] to [destination]”.'],
+ locationFailed:['暫時攞唔到你嘅位置。請輸入出發地，或者打「由［出發地］去［目的地］」。','Could not get your location. Enter a starting point below, or type “from [start] to [destination]”.']
+};
+function message(key,params={}){return messages[key][language==='en'?1:0].replace(/\{(\w+)\}/g,(_,name)=>params[name]??'');}
+let statusState={key:null,params:{}};
+function setStatus(key=null,params={}){statusState={key,params};status.textContent=key?message(key,params):'';}
+function stopDisplay(stop,includeRoutes=false){return stop.location?message('currentLocation'):TransportStops.busOnly(stop)?TransportStops.describe(stop,language,includeRoutes):stop.name;}
+function applyLanguage(){
+ document.documentElement.lang=language==='en'?'en':'zh-Hant';
+ document.title=message('title');
+ for(const el of document.querySelectorAll('[data-i18n]'))el.textContent=message(el.dataset.i18n);
+ for(const el of document.querySelectorAll('[data-i18n-placeholder]'))el.placeholder=message(el.dataset.i18nPlaceholder);
+ for(const el of document.querySelectorAll('[data-i18n-aria]'))el.setAttribute('aria-label',message(el.dataset.i18nAria));
+ document.querySelectorAll('[data-lang]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.lang===language)));
+ if(input.validity.customError)input.setCustomValidity(message('missingDestination'));
+ if(active&&!stations.hidden){
+  for(const stop of Object.values(active.selected))if(stop.location)stop.name=message('currentLocation');
+  showParsing(active);
+  if(choices.children.length)selectStations(active,false,false);
+ }
+ setStatus(statusState.key,statusState.params);
+}
 const londonDate = new Intl.DateTimeFormat('en-GB', {
   timeZone: 'Europe/London', year: 'numeric', month: '2-digit', day: '2-digit',
   hour: '2-digit', minute: '2-digit', hourCycle: 'h23'
@@ -77,7 +141,7 @@ function timingFrom(text, now) {
   let hour = hourValue(digits);
   const minute = Number(minutes ?? (suffix === '半' ? '30' : suffix?.replace(/\s*分$/, '') ?? '0'));
   if (!Number.isInteger(hour) || hour < 0 || hour > 23 || minute > 59) {
-    return { error: '時間格式有問題。試吓「聽朝九點」或「14:30」。' };
+    return { error: message('invalidTime'), errorKey:'invalidTime' };
   }
   if (/^(中午|晏晝|下午|夜晚|晚上)$/.test(period) && hour < 12) hour += 12;
   if (period === '凌晨' && hour === 12) hour = 0;
@@ -85,7 +149,7 @@ function timingFrom(text, now) {
   const time = String(hour).padStart(2, '0') + String(minute).padStart(2, '0');
   const nextDay = day && /^(聽日|聽朝|明日|明天)$/.test(day);
   const passed = time < local.hour + local.minute;
-  if (day && !nextDay && passed) return { error: '你揀嘅時間已經過咗。試吓加「聽日」。' };
+  if (day && !nextDay && passed) return { error: message('pastTime'), errorKey:'pastTime' };
   const date = new Date(Date.UTC(+local.year, +local.month - 1, +local.day + Number(Boolean(nextDay || (!day && passed))))).toISOString().slice(0, 10);
   const context = text.slice(clock.index + expression.length);
   const timeIs = before || timedArrival.test(context) ? 'arriving' : 'departing';
@@ -105,15 +169,15 @@ function parseJourney(input, now = new Date()) {
   const originPrefix = /^(?:由|從|从|喺|係|在|from\b)\s*/iu;
   const route = text.replace(originPrefix, '');
   const split = route.match(journeySeparator);
-  if (!split && originPrefix.test(text)) return { error: '請補返目的地。' };
+  if (!split && originPrefix.test(text)) return { error: message('missingDestination'), errorKey:'missingDestination' };
   const origin = split ? place(route.slice(0, split.index)
     .replace(/(?:[\s，,；;]+|出發|出发|等車|等车|想|要|希望|準時|准时|然後|然后)+$/u, '')) : '';
   const from = /^(?:我?(?:而家(?:嘅)?|目前(?:嘅)?|依家(?:嘅)?)位置|這裡|呢度|here|(?:my )?current location)$/iu.test(origin)
     ? null : origin || null;
   const to = place((split ? route.slice(split.index + split[0].length) : route)
     .replace(/(?:呀|啊|啦|點去|怎么去)[\s。！？!?]*$/u, ''));
-  if (!to) return { error: '請補返目的地。' };
-  if (from?.toLowerCase() === to.toLowerCase()) return { error: '出發地同目的地要唔同。' };
+  if (!to) return { error: message('missingDestination'), errorKey:'missingDestination' };
+  if (from?.toLowerCase() === to.toLowerCase()) return { error: message('samePlace'), errorKey:'samePlace' };
   return { from, to, timing: prepared.timing };
 }
 
@@ -161,7 +225,7 @@ async function findStations(query, signal) {
     const busOnly=TransportStops.busOnly(stop);
     const id=busOnly?stop.id:stop.icsId||stop.icsCode||stop.id;
     const key=busOnly?stop.id:id+'|'+stop.name.toLowerCase();
-    const candidate={...stop,id,modes:served,display:busOnly?TransportStops.describe(stop,'zh',false):stop.name,rank:stationRank(stop.name,search)};
+    const candidate={...stop,id,modes:served,display:busOnly?TransportStops.describe(stop,language,false):stop.name,rank:stationRank(stop.name,search)};
     if(!unique.has(key)||candidate.rank<unique.get(key).rank)unique.set(key,candidate);
   }
   return [...unique.values()].sort((a,b)=>a.rank-b.rank||a.name.localeCompare(b.name)).slice(0,12);
@@ -170,44 +234,44 @@ async function findStations(query, signal) {
 function showParsing(state) {
   stations.hidden = false;
   endpoints.replaceChildren();
-  for (const [key, label] of [['from','出發地'], ['to','目的地']]) {
+  for (const key of ['from','to']) {
     const item = element('div', undefined, 'endpoint');
-    item.append(element('span', label), element('strong', state.selected[key]?.display ?? state.selected[key]?.name ?? state.parsed[key] ?? '目前位置'));
+    item.append(element('span', message(key)), element('strong', state.selected[key]?stopDisplay(state.selected[key]):state.parsed[key]??message('currentLocation')));
     endpoints.append(item);
   }
   const value = state.parsed.timing;
   timing.hidden = false;
   if (value) {
     const day = value.date.replace(/^(\d{4})(\d{2})(\d{2})$/, '$1-$2-$3');
-    timing.textContent = (value.timeIs === 'arriving' ? '到達期限 ' : '出發時間 ') +
-      day + ' · ' + value.time.slice(0,2) + ':' + value.time.slice(2) + '（倫敦時間）';
-  } else timing.textContent='而家出發 / Leave now';
+    timing.textContent = message(value.timeIs === 'arriving' ? 'arriveBy' : 'departAt') +
+      day + ' · ' + value.time.slice(0,2) + ':' + value.time.slice(2) + message('londonTime');
+  } else timing.textContent=message('leaveNow');
 }
 
-function selectStations(state) {
+function selectStations(state,focus=true,updateStatus=true) {
   showParsing(state);
   choices.replaceChildren();
   const key = ['from','to'].find(side => !state.selected[side]);
   if (!key) {
-    const button=element('button','確認並開啟 Journey / Confirm and open Journey');
+    const button=element('button',message('confirm'));
     button.type='button';button.className='primary';
     button.onclick=()=>{if(active===state)openJourney(state)};
     choices.append(button);
-    status.textContent='請確認出發地、目的地同時間。';
-    button.focus();
+    if(updateStatus)setStatus('confirmHint');
+    if(focus)button.focus();
     return;
   }
   const candidates = state.candidates[key];
   if (!candidates.length) {
-    status.textContent = '搵唔到「' + state.parsed[key] + '」。試吓用完整英文站名。';
+    if(updateStatus)setStatus('notFound',{place:state.parsed[key]});
     return;
   }
-  const title = element('strong', key === 'from' ? '揀出發站' : '揀目的地');
+  const title = element('strong', message(key === 'from' ? 'chooseFrom' : 'chooseTo'));
   choices.append(title);
   for (const candidate of candidates) {
-    const button = element('button', TransportStops.busOnly(candidate)?TransportStops.describe(candidate,'zh'):candidate.name);
+    const button = element('button', stopDisplay(candidate,true));
     button.type = 'button';
-    button.append(element('small', candidate.modes.map(mode => modeNames[mode]).join(' · ')));
+    button.append(element('small', candidate.modes.map(mode => mode==='bus'?message('bus'):modeNames[mode]).join(' · ')));
     button.onclick = () => {
       if (active !== state) return;
       state.selected[key] = candidate;
@@ -215,14 +279,14 @@ function selectStations(state) {
     };
     choices.append(button);
   }
-  status.textContent = '';
-  choices.querySelector('button')?.focus();
+  if(updateStatus)setStatus();
+  if(focus)choices.querySelector('button')?.focus();
 }
 
 function openJourney(state) {
   const {from,to} = state.selected;
   if (from.id === to.id) {
-    status.textContent = '請揀兩個唔同嘅車站。';
+    setStatus('sameStation');
     return;
   }
   try {
@@ -232,22 +296,22 @@ function openJourney(state) {
       timing: state.parsed.timing
     }));
   } catch {
-    status.textContent = '瀏覽器未能交接搜尋。你可以用上面嘅「Journey」連結手動查路線。';
+    setStatus('handoffFailed');
     return;
   }
   submit.disabled = true;
-  status.textContent = '開緊 Journey…';
+  setStatus('opening');
   location.assign('./journeys.html?quick=1');
 }
 
 function locateOrigin() {
-  if (!navigator.geolocation) return Promise.reject(new Error('呢個瀏覽器未能定位。請打「由［出發地］去［目的地］」。'));
+  if (!navigator.geolocation) return Promise.reject(Object.assign(new Error(message('locationUnsupported')),{messageKey:'locationUnsupported'}));
   return new Promise((resolve, reject) => {
     navigator.geolocation.getCurrentPosition(({coords}) => {
-      resolve({id:coords.latitude.toFixed(6) + ',' + coords.longitude.toFixed(6), name:'目前位置'});
+      resolve({id:coords.latitude.toFixed(6) + ',' + coords.longitude.toFixed(6), name:message('currentLocation'),location:true});
     }, error => {
-      const reason = error.code === 1 ? '瀏覽器未有定位權限。' : '暫時攞唔到你嘅位置。';
-      reject(new Error(reason + '你可以打「由［出發地］去［目的地］」。'));
+      const messageKey=error.code===1?'locationDenied':'locationFailed';
+      reject(Object.assign(new Error(message(messageKey)),{messageKey}));
     }, {timeout:12000, maximumAge:0});
   });
 }
@@ -261,7 +325,7 @@ async function search(event) {
   choices.replaceChildren();
   const parsed = parseJourney(input.value);
   if (parsed.error) {
-    status.textContent = parsed.error;
+    setStatus(parsed.errorKey);
     return;
   }
   const state = {parsed, controller:new AbortController(), selected:{}, candidates:{}};
@@ -269,14 +333,14 @@ async function search(event) {
   showParsing(state);
   submit.disabled = true;
   if (!parsed.from) {
-    status.textContent = '搵緊你嘅目前位置…';
+    setStatus('locating');
     try {
       const origin = await locateOrigin();
       if (active !== state) return;
       state.selected.from = origin;
     } catch (error) {
       if (active === state) {
-        status.textContent = error.message;
+        setStatus(error.messageKey||'locationFailed');
         document.querySelector('#startRecovery').hidden=false;
         document.querySelector('#startPoint').focus();
         submit.disabled = false;
@@ -284,7 +348,7 @@ async function search(event) {
       return;
     }
   }
-  status.textContent = '查緊站名…';
+  setStatus('lookingUp');
   try {
     const keys = parsed.from ? ['from','to'] : ['to'];
     const matches = await Promise.all(keys.map(key => findStations(parsed[key], state.controller.signal)));
@@ -297,7 +361,7 @@ async function search(event) {
     });
   } catch {
     if (active !== state) return;
-    status.textContent = '暫時讀取唔到 TfL 站名。請再試。';
+    setStatus('stationsFailed');
     return;
   } finally {
     if (active === state) submit.disabled = false;
@@ -323,14 +387,16 @@ document.querySelector('#useStart').onclick=()=>{
       else if(matches[index].length===1)state.selected[key]=matches[index][0];
     });
     selectStations(state);
-  }).catch(()=>{if(active===state)status.textContent='暫時讀取唔到站名，請再試。'}).finally(()=>{if(active===state)submit.disabled=false});
+  }).catch(()=>{if(active===state)setStatus('startFailed')}).finally(()=>{if(active===state)submit.disabled=false});
 };
 form.onsubmit = search;
+input.addEventListener('invalid',()=>{if(input.validity.valueMissing)input.setCustomValidity(message('missingDestination'))});
 input.oninput = () => {
+  input.setCustomValidity('');
   active?.controller.abort();
   active = undefined;
   submit.disabled = false;
-  status.textContent = '';
+  setStatus();
   document.querySelector('#startRecovery').hidden=true;
   stations.hidden = true;
 };
@@ -345,7 +411,14 @@ for (const example of document.querySelectorAll('.examples button')) {
 window.addEventListener('pageshow', event => {
   if (!event.persisted) return;
   submit.disabled = false;
-  status.textContent = '';
+  setStatus();
 });
+document.querySelectorAll('[data-lang]').forEach(button=>button.onclick=()=>{
+ language=button.dataset.lang;saveLanguage(language);applyLanguage();
+});
+function syncLanguage(){const saved=readLanguage();if(saved!==language){language=saved;applyLanguage();}}
+window.addEventListener('storage',event=>{if(event.key===languageKey||event.key===null)syncLanguage()});
+window.addEventListener('pageshow',syncLanguage);
+applyLanguage();
 </script>
 </html>

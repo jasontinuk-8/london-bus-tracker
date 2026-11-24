@@ -198,8 +198,21 @@ button,select,input{min-height:44px}#refreshCountdown{font-variant-numeric:tabul
 <script src="./stop-search.js"></script>
 <script>
 const by=id=>document.getElementById(id);
-let language='zh';
-try{if(localStorage.getItem('bus65-language')==='en')language='en'}catch{}
+const languageKey='bus-tracker-language';
+function readLanguage(){
+ try{
+  const saved=localStorage.getItem(languageKey);
+  if(saved==='zh'||saved==='en')return saved;
+  for(const key of ['bus65-language','rail-journey-language']){
+   const legacy=localStorage.getItem(key);
+   if(legacy==='zh'||legacy==='en'){try{localStorage.setItem(languageKey,legacy)}catch{}return legacy;}
+  }
+  localStorage.setItem(languageKey,'zh');
+ }catch{}
+ return 'zh';
+}
+function saveLanguage(value){try{localStorage.setItem(languageKey,value)}catch{}}
+let language=readLanguage();
 const tr=(zh,en)=>language==='en'?en:zh;
 const copy={
  brand:['倫敦交通追蹤','London Transport Tracker'],
@@ -448,7 +461,7 @@ function applyLanguage(){
 }
 for(const lang of ['zh','en'])by(lang).onclick=()=>{
  language=lang;
- try{localStorage.setItem('bus65-language',lang)}catch{}
+ saveLanguage(lang);
  applyLanguage();
 };
 const station=by('station');
@@ -1870,5 +1883,8 @@ if(nationalRail){
 }
 else if(!params.has('bus')&&params.get('route')==='sl7')location.replace('map.html?route=sl7');
 else start();
+function syncLanguage(){const saved=readLanguage();if(saved!==language){language=saved;applyLanguage();}}
+window.addEventListener('storage',event=>{if(event.key===languageKey||event.key===null)syncLanguage()});
+window.addEventListener('pageshow',syncLanguage);
 </script>
 </html>

@@ -82,8 +82,21 @@ main:has(.field:focus-within){padding-bottom:max(64px,var(--search-space,0px))}
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="./stop-search.js"></script>
 <script>
-let language='zh';
-try{if(localStorage.getItem('rail-journey-language')==='en')language='en';}catch{}
+const languageKey='bus-tracker-language';
+function readLanguage(){
+ try{
+  const saved=localStorage.getItem(languageKey);
+  if(saved==='zh'||saved==='en')return saved;
+  for(const key of ['bus65-language','rail-journey-language']){
+   const legacy=localStorage.getItem(key);
+   if(legacy==='zh'||legacy==='en'){try{localStorage.setItem(languageKey,legacy)}catch{}return legacy;}
+  }
+  localStorage.setItem(languageKey,'zh');
+ }catch{}
+ return 'zh';
+}
+function saveLanguage(value){try{localStorage.setItem(languageKey,value)}catch{}}
+let language=readLanguage();
 const tr=(zh,en)=>language==='en'?en:zh;
 const labels=[["倫敦交通行程","London Transport Journeys"],["規劃倫敦巴士、Tube、Overground、Elizabeth line、DLR、National Rail 同步行行程。","Plan journeys by bus, Tube, Overground, Elizabeth line, DLR, National Rail and on foot."],["我喺邊","From"],["我想去邊","To"],["搜尋巴士站或車站","Search stops or stations"],null,null,null,null,["睇行程","Find journeys"],["使用目前位置","Use my location"],["清除行程","Clear journey"],["行程時間","Journey time"],["時間選項","Time option"],["而家出發","Leave now"],["指定出發時間","Depart at"],["指定到達時間","Arrive by"],["日期","Date"],["時間（倫敦）","Time (London)"]];
 const statusTranslations=[["載入路線中…","Loading lines…"],["未能載入路線。請重試，或者直接輸入站名。","Could not load lines. Retry, or type a station name."],["載入車站中…","Loading stations…"],["先揀路線","Choose a line first"],["揀車站","Choose a station"],["未能載入車站","Could not load stations"],["請重新揀路線，或者直接輸入站名。","Select the line again or type a station name."],["請輸入出發地同目的地。","Enter a starting point and destination."],["請睇站內顯示屏","Check the station display"],["即時到站預測","Live arrival prediction"],["查看站內顯示屏","Check the station display"],["請揀兩個唔同嘅地點。","Choose two different locations."],["TfL 暫時搵唔到合適嘅行程。試下輸入附近巴士站或車站。","TfL found no suitable journeys. Try a nearby stop or station."],["請揀搜尋建議入面嘅車站，或者輸入更完整嘅地點。","Choose a suggested station or enter a more specific location."],["暫時未能向 TfL 取得行程，請再試一次。","Could not get journeys from TfL. Please try again."],["呢個瀏覽器未能提供定位。","Location is unavailable in this browser."],["搵緊你嘅位置…","Finding your location…"],["目前位置","Current location"],["已設定目前位置。按「睇行程」後會交畀 TfL 查詢。","Current location set. Find journeys to send it to TfL."],["未能取得位置，可以手動輸入。","Could not get your location. You can type a starting point."]];
@@ -1032,7 +1045,7 @@ document.querySelector('#locate').onclick=()=>{
 };
 document.querySelectorAll('[data-lang]').forEach(button=>button.onclick=()=>{
  language=button.dataset.lang;
- try{localStorage.setItem('rail-journey-language',language);}catch{}
+ saveLanguage(language);
  applyLanguage();
 });
 function loadQuickJourney(){
@@ -1076,5 +1089,8 @@ if(!returningToJourney&&loadQuickJourney())plan();
 if(returningToJourney&&model){
  requestAnimationFrame(()=>document.getElementById(location.hash.slice(1))?.scrollIntoView());
 }
+function syncLanguage(){const saved=readLanguage();if(saved!==language){language=saved;applyLanguage();}}
+window.addEventListener('storage',event=>{if(event.key===languageKey||event.key===null)syncLanguage()});
+window.addEventListener('pageshow',syncLanguage);
 </script>
 </html>
