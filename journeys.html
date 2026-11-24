@@ -2,6 +2,10 @@
 <html lang="zh-Hant">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="./favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="./icon-192.png">
+<link rel="manifest" href="./manifest.webmanifest">
+<meta name="theme-color" content="#142640">
 <title>倫敦交通行程</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
@@ -36,6 +40,10 @@ main:has(.field:focus-within){padding-bottom:max(64px,var(--search-space,0px))}
 .journey-timing{min-width:0;border:1px solid #d5dce6;border-radius:10px;margin:14px 0 0;padding:10px}
 .journey-timing legend{font-weight:750}.journey-timing select,.journey-timing input{min-width:0;width:100%;min-height:44px;font:inherit;color:inherit;background:#fff;border:1px solid #aab6c8;border-radius:8px;padding:8px}
 .timing-inputs{margin-top:8px;grid-template-columns:repeat(2,minmax(0,1fr))}.timing-inputs[hidden]{display:none}
+
+[hidden]{display:none!important}
+.journey-refresh{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:14px 0}
+@media(max-width:420px){main{padding:16px 12px 36px}.board{grid-template-columns:1fr}.board .eta{order:-1;text-align:left}.board-heading{order:-2}button,input,select,summary{min-height:44px}.fields{grid-template-columns:minmax(0,1fr)}}
 </style>
 <main>
 <header><div class="locale" role="group" aria-label="Language"><button type="button" data-lang="zh" lang="zh-Hant">中</button> <button type="button" data-lang="en" lang="en">ENG</button></div><h1><span data-label="0">倫敦交通行程</span></h1><p><span data-label="1">規劃倫敦巴士、Tube、Overground、Elizabeth line、DLR、National Rail 同步行行程。</span></p><a class="tracker-link" href="https://jasontinuk-8.github.io/london-bus-tracker/" data-tracker>倫敦交通追蹤</a> <a class="tracker-link quick-link" href="./quick-journey.html" data-quick-journey>一句查路線</a></header>
@@ -131,7 +139,8 @@ function stationCode(stop){
 }
 function busStop(stop){return stop.modes?.includes('bus')&&!stop.modes.some(mode=>mode!=='bus'&&transitModes.has(mode));}
 function stationName(stop){return busStop(stop)?stop.name:clean(stop.name);}
-function stopLetterLabel(name,letter){return name+tr(' · 站牌 ',' · Stop ')+letter;}
+function cleanStopLetter(value){return /^[A-Z]{1,3}[0-9]{0,2}$/i.test(String(value??'').trim())?String(value).trim():''}
+function stopLetterLabel(name,letter){letter=cleanStopLetter(letter);return name+(letter?tr(' · 站牌 ',' · Stop ')+letter:'');}
 function stationLabel(stop){
  const code=stationCode(stop);
  const name=stationName(stop);
@@ -351,6 +360,8 @@ function journeyPath(from,to){
 }
 let model,request=0,view=0,locationRequest=0,journeyEndpoints;
 let journeyRefreshTimer;
+let journeyRefreshDue=0;
+let refreshVisibleJourney;
 const savedJourneyKey='london-transport-journey-v1';
 const clearJourneyButton=document.querySelector('#clear-journey');
 const journeyTimeMode=document.querySelector('#journey-time-mode');
@@ -806,7 +817,7 @@ async function showNextTrains(details,leg,ready){
    const expected=new Date(train.expectedArrival);
    const minutes=Math.max(0,Math.ceil((+expected-Date.now())/60000));
    const timing=train.atPlatform?tr('已在月台','At platform'):londonTime.format(expected)+' · '+
-    (train.scheduled?tr('預定開車','Scheduled departure'):minutes?minutesLabel(minutes):tr('即將到站','Due'));
+    (train.scheduled?tr('預定開車','Scheduled departure'):Date.parse(train.expectedArrival)-Date.now()<60000?tr('即將到站','Due'):minutesLabel(minutes));
    return '<li><strong>'+html(timing)+'</strong> · '+html(trainDestination(train))+(train.platformName?' · '+html(train.platformName):'')+'</li>';
   }).join('')+'</ul><p class="muted">'+tr('時間以呢程嘅上車站為準。','Times are for this leg’s boarding stop.')+'</p>';
  }catch{
@@ -850,7 +861,7 @@ function render(index=0){
    <p>${nationalRailLeg(leg)?html(lineName)+' · ':''}${tr('約 ','About ')}${minutesLabel(leg.duration)}</p>
    <p>${tr('計劃開車 ','Planned departure ')}<strong>${time(leg.departureTime)}</strong> · ${tr('計劃到達 ','Planned arrival ')}<strong>${time(leg.arrivalTime)}</strong></p>
    ${nationalRailLeg(leg)&&tracker?`<p><a class="journey-action-link" href="${html(tracker)}">${tr('喺 Tracker 睇即時開車班次','See live departures in Tracker')}</a></p>`:''}
-   ${bus&&leg.departurePoint?.stopLetter?`<p>${tr('站牌 ','Stop ')}${html(leg.departurePoint.stopLetter)}</p>`:leg.departurePoint?.platformName?`<p>${tr('月台 ','Platform ')}${html(leg.departurePoint.platformName)}</p>`:''}
+   ${bus&&cleanStopLetter(leg.departurePoint?.stopLetter)?`<p>${tr('站牌 ','Stop ')}${html(cleanStopLetter(leg.departurePoint.stopLetter))}</p>`:leg.departurePoint?.platformName?`<p>${tr('月台 ','Platform ')}${html(leg.departurePoint.platformName)}</p>`:''}
    <details data-map-leg="${legIndex}"><summary>${tr('睇沿途車站同地圖','Show stops and map')}</summary><div class="stops-map" role="region" aria-label="${tr('沿途車站地圖','Map of stops')}"></div><p class="muted" data-map-note></p><ol>${[start,...stops,end].map(name=>'<li>'+html(name)+'</li>').join('')}</ol></details>
   </article>`;
   return `<article class="leg" id="journey-leg-${legIndex}" data-transit-leg="${legIndex}" style="--line:${lineStyle(lineId(leg))[0]}">
@@ -864,6 +875,7 @@ function render(index=0){
    <details class="next-trains" data-next-leg="${legIndex}"><summary>${bus?tr('睇之後幾班巴士','Next buses'):tr('睇下一班車','Next trains')}</summary><div data-train-list role="status"></div></details>
    <details data-map-leg="${legIndex}"><summary>${tr('睇沿途車站同地圖','Show stops and map')}</summary><div class="stops-map" role="region" aria-label="${tr('沿途車站地圖','Map of stops')}"></div><p class="muted" data-map-note></p><ol>${[start,...stops,end].map(name=>'<li>'+html(name)+'</li>').join('')}</ol></details></article>`;
  }).join('')}
+ <div class="journey-refresh" ${timing?'hidden':''}><button type="button" id="journeyRefreshNow">${tr('更新班次','Refresh arrivals')}</button><span id="journeyRefreshCountdown" role="status"></span></div>
  <p class="muted">${tr('資料由 Transport for London 提供 · 倫敦時間','Data from Transport for London · London time')}</p>`;
  const journeyMap=result.querySelector('[data-journey-map]');
  journeyMap.ontoggle=()=>showJourneyMap(journeyMap,journey);
@@ -926,25 +938,33 @@ function render(index=0){
   function tick(){
    if(version!==view||predictions!==current)return;
    const minutes=Math.ceil((expected.getTime()-Date.now())/60000);
-   eta.textContent=minutes>0?(train.atPlatform?tr('已在月台','At platform'):londonTime.format(expected)+' · '+minutesLabel(minutes)):
+   eta.textContent=!train.atPlatform&&expected.getTime()-Date.now()<60000?tr('即將到站','Due'):minutes>0?(train.atPlatform?tr('已在月台','At platform'):londonTime.format(expected)+' · '+minutesLabel(minutes)):
     leg.mode.id==='bus'?tr('即將到站','Due'):tr('請睇站內顯示屏','Check the station display');
    if(minutes>0)setTimeout(tick,1000);
   }
   tick();
  }
- if(!liveCards.length)return;
+ if(!liveCards.length){document.querySelector('#journeyRefreshNow')?.parentElement.setAttribute('hidden','');return;}
  let refreshing=false;
  async function refreshPredictions(initial=false){
   if(refreshing||(!initial&&document.hidden)||version!==view)return;
   refreshing=true;
+  const refreshButton=document.querySelector('#journeyRefreshNow');if(refreshButton)refreshButton.disabled=true;
   try{
    arrivalsCache.clear();
    predictions=connectionPredictions(journey.legs,model.plannedAt);
    await Promise.allSettled(liveCards.map(card=>updateLiveCard(card,predictions)));
-  }finally{refreshing=false;}
+  }finally{refreshing=false;journeyRefreshDue=Date.now()+30000;const button=document.querySelector('#journeyRefreshNow');if(button)button.disabled=false;}
  }
  refreshPredictions(true);
- journeyRefreshTimer=setInterval(refreshPredictions,30000);
+ refreshVisibleJourney=refreshPredictions;
+ document.querySelector('#journeyRefreshNow').onclick=()=>refreshPredictions(true);
+ journeyRefreshDue=Date.now()+30000;
+ journeyRefreshTimer=setInterval(()=>{
+  const label=document.querySelector('#journeyRefreshCountdown');
+  if(label)label.textContent=tr('下次更新 ','Next refresh ')+Math.max(0,Math.ceil((journeyRefreshDue-Date.now())/1000))+tr(' 秒','s');
+  if(Date.now()>=journeyRefreshDue&&!refreshing){journeyRefreshDue=Date.now()+30000;refreshPredictions()}
+ },1000);
 }
 async function plan(event){
  event?.preventDefault();
@@ -992,6 +1012,7 @@ async function plan(event){
   result.innerHTML='<p class="empty" role="status">'+html(message)+'</p>';
  }finally{if(version===request)submit.disabled=false;}
 }
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&model&&!model.timing)refreshVisibleJourney?.(true)});
 form.onsubmit=plan;
 clearJourneyButton.onclick=clearJourney;
 document.querySelector('#locate').onclick=()=>{

@@ -3,6 +3,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#142640">
+<link rel="icon" href="./favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="./icon-192.png">
+<link rel="manifest" href="./manifest.webmanifest">
+<meta name="theme-color" content="#142640">
 <title>一句查路線 · London Journey</title>
 <style>
 :root{color-scheme:light;--ink:#142640;--muted:#516177;--line:#ced8e3;--blue:#194f98;font-family:system-ui,sans-serif;color:var(--ink);background:#eef2f6}
@@ -21,6 +25,7 @@ button:disabled{opacity:.65;cursor:wait}button:hover:not(:disabled){border-color
 small,.endpoint span{display:block;font-size:.85rem}.timing{margin-bottom:12px}header nav{display:flex;gap:16px;margin-top:14px}header nav a{color:#fff;text-underline-offset:3px}
 footer{font-size:.85rem;color:var(--muted)}footer a{color:var(--blue)}
 [hidden]{display:none!important}
+input,button{min-height:44px;font:inherit}#startRecovery{display:grid;gap:8px;margin-top:12px}#startRecovery input{width:100%;min-width:0;border:1px solid #94a6bc;border-radius:8px;padding:10px}@media(max-width:420px){.endpoints{grid-template-columns:1fr}}
 </style>
 <main>
 <header><p class="brand">LONDON JOURNEY</p><h1>一句查路線</h1><p>用廣東話或英文打一句，即可喺 Journey 查路線。</p><nav aria-label="倫敦交通"><a href="./journeys.html">Journey</a><a href="./">Tracker</a></nav></header>
@@ -40,6 +45,7 @@ footer{font-size:.85rem;color:var(--muted)}footer a{color:var(--blue)}
  <div class="endpoints" id="endpoints"></div>
  <p class="timing muted" id="timing" hidden></p>
  <div class="station-options" id="choices"></div>
+ <div id="startRecovery" hidden><label for="startPoint">出發地 / Starting point</label><input id="startPoint" autocomplete="off" placeholder="例如 Richmond Station"><button id="useStart" type="button">用呢個起點 / Use this start</button></div>
 </section>
 <footer>交通資料由 <a href="https://tfl.gov.uk/">Transport for London</a> 提供 · 倫敦時間</footer>
 </main>
@@ -172,19 +178,27 @@ function showParsing(state) {
     endpoints.append(item);
   }
   const value = state.parsed.timing;
-  timing.hidden = !value;
+  timing.hidden = false;
   if (value) {
     const day = value.date.replace(/^(\d{4})(\d{2})(\d{2})$/, '$1-$2-$3');
     timing.textContent = (value.timeIs === 'arriving' ? '到達期限 ' : '出發時間 ') +
       day + ' · ' + value.time.slice(0,2) + ':' + value.time.slice(2) + '（倫敦時間）';
-  }
+  } else timing.textContent='而家出發 / Leave now';
 }
 
 function selectStations(state) {
   showParsing(state);
   choices.replaceChildren();
   const key = ['from','to'].find(side => !state.selected[side]);
-  if (!key) return openJourney(state);
+  if (!key) {
+    const button=element('button','確認並開啟 Journey / Confirm and open Journey');
+    button.type='button';button.className='primary';
+    button.onclick=()=>{if(active===state)openJourney(state)};
+    choices.append(button);
+    status.textContent='請確認出發地、目的地同時間。';
+    button.focus();
+    return;
+  }
   const candidates = state.candidates[key];
   if (!candidates.length) {
     status.textContent = '搵唔到「' + state.parsed[key] + '」。試吓用完整英文站名。';
@@ -244,6 +258,7 @@ async function search(event) {
   event.preventDefault();
   active?.controller.abort();
   active = undefined;
+  document.querySelector('#startRecovery').hidden=true;
   stations.hidden = true;
   choices.replaceChildren();
   const parsed = parseJourney(input.value);
@@ -264,6 +279,8 @@ async function search(event) {
     } catch (error) {
       if (active === state) {
         status.textContent = error.message;
+        document.querySelector('#startRecovery').hidden=false;
+        document.querySelector('#startPoint').focus();
         submit.disabled = false;
       }
       return;
@@ -290,12 +307,33 @@ async function search(event) {
   await selectStations(state);
 }
 
+document.querySelector('#useStart').onclick=()=>{
+  if(!active)return;
+  const start=document.querySelector('#startPoint').value.trim();
+  if(!start){document.querySelector('#startPoint').focus();return}
+  const state=active;
+  state.parsed.from=start;
+  document.querySelector('#startRecovery').hidden=true;
+  showParsing(state);
+  submit.disabled=true;
+  Promise.all(['from','to'].map(key=>findStations(state.parsed[key],state.controller.signal))).then(matches=>{
+    if(active!==state)return;
+    ['from','to'].forEach((key,index)=>{
+      const exact=matches[index].filter(stop=>stop.rank===0);
+      state.candidates[key]=exact.length?exact:matches[index];
+      if(exact.length===1)state.selected[key]=exact[0];
+      else if(matches[index].length===1)state.selected[key]=matches[index][0];
+    });
+    selectStations(state);
+  }).catch(()=>{if(active===state)status.textContent='暫時讀取唔到站名，請再試。'}).finally(()=>{if(active===state)submit.disabled=false});
+};
 form.onsubmit = search;
 input.oninput = () => {
   active?.controller.abort();
   active = undefined;
   submit.disabled = false;
   status.textContent = '';
+  document.querySelector('#startRecovery').hidden=true;
   stations.hidden = true;
 };
 for (const example of document.querySelectorAll('.examples button')) {
